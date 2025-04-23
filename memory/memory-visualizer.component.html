@@ -1,0 +1,77 @@
+<div class="memory-graph-container">
+    <!-- Graph Visualization Container -->
+    <div #graphContainer class="graph-visualization" style="height: 500px; border: 1px solid #ccc;"></div>
+  
+    <!-- Node Creation Section -->
+    <div class="node-creation mt-3">
+      <p-dropdown 
+        [(ngModel)]="selectedNodeType" 
+        [options]="nodeTypes" 
+        placeholder="Select Node Type">
+      </p-dropdown>
+      <button 
+        pButton 
+        type="button" 
+        label="Add Node" 
+        (click)="addNode()"
+        class="p-button-primary ml-2"
+      ></button>
+    </div>
+  
+    <!-- Edge Creation Section -->
+    <div class="edge-creation mt-3">
+      <p-dropdown 
+        [(ngModel)]="selectedSourceNode" 
+        [options]="activeNodes()" 
+        optionLabel="id" 
+        placeholder="Select Source Node">
+      </p-dropdown>
+      <p-dropdown 
+        [(ngModel)]="selectedTargetNode" 
+        [options]="activeNodes()" 
+        optionLabel="id" 
+        placeholder="Select Target Node">
+      </p-dropdown>
+      <button 
+        pButton 
+        type="button" 
+        label="Add Edge" 
+        (click)="addEdge()"
+        class="p-button-success ml-2"
+        [disabled]="!selectedSourceNode || !selectedTargetNode"
+      ></button>
+    </div>
+  
+    <!-- Control Buttons -->
+    <div class="controls mt-3">
+      <app-decay-progress [node]="entropyNode">
+    </app-decay-progress>
+      <button 
+        pButton 
+        type="button" 
+        label="AI Judge" 
+        (click)="aiJudge()"
+        class="p-button-success mr-2"
+      ></button> 
+      <button 
+        pButton 
+        type="button" 
+        label="Reset Graph" 
+        (click)="resetGraph()"
+        class="p-button-warning mr-2"
+      ></button>
+      <button 
+      pButton 
+      type="button" 
+      label="Rebirth" 
+      (click)="resetEntropy()"
+      class="p-button-success mr-2"
+    ></button>
+      
+          </div>
+<div class="performance-info mt-3">
+  <span>Nodes: {{ nodeCount() }}</span>
+  <span class="ml-2">Edges: {{ edgeCount() }}</span>
+</div>
+      </div>
+  
