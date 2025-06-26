@@ -8,7 +8,9 @@
 
 ## Abstract
 
-The Agentic Mesh Protocol (AMP) introduces the MemoryGram—a portable, partial memory snapshot that lets agents share relevant context without centralising live memory. AMP adapts the classic SOAP 1.2 envelope (Header + Body) to JSON and adds the MemoryGram section for context exchange.
+The Agentic Mesh Protocol (AMP) is a lightweight protocol intended for exchanging structured information between autonomous, agentic entities in decentralized, distributed environments. Part 1: Messaging Framework defines an extensible messaging framework expressed in JSON, introducing a novel MemoryGram construct that enables agents to share partial memory snapshots and contextual information without requiring centralized memory storage.
+
+This specification supports interoperable communication between heterogeneous Agentic Agents across organizational boundaries, building on foundational concepts from SOAP Version 1.2 while adapting them for modern distributed AI systems.
 
 ## Status of this Document
 
