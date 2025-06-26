@@ -35,26 +35,92 @@ The key words MUST, SHALL, SHOULD, MAY, etc. are to be interpreted as described 
 9. [Informative References](#informative-references)
 10. [License](#license)
 
-## 1 Introduction
+major design goals for AMP are **simplicity** and **extensibility**. To achieve these, AMP deliberately omits certain features commonly found in distributed systems, such as built-in reliability, security, correlation, routing, and Message Exchange Patterns (MEPs). While AMP defines core messaging semantics, many features are expected to be implemented as extensions or by complementary protocols.
 
-AMP is designed for:
+The AMP specification is organized into three parts:
 
-- **Role‑aware routing** – messages include agent roles for semantic routing.
-- **Context continuity** – partial memory snapshots avoid global state.
-- **Secure interoperability** – multilayer encryption options (field, section, BYOE).
+* The **AMP processing model**, defining rules for processing an AMP message (see Section 2).
+* The **AMP extensibility model**, introducing concepts of AMP features and modules (see Section 3).
+* The **AMP protocol binding framework**, describing rules for defining transport bindings to carry AMP messages (see Section 4).
 
-### 1.1 Relationship to SOAP 1.2
+The AMP message construct defines the structure of an AMP message (see Section 5).
 
-AMP reuses the envelope/header/body model from SOAP 1.2 Part 1 but serialises it as JSON and layers the MemoryGram on top.
+An introductory primer is provided as a non-normative document to explain AMP's core concepts and typical usage scenarios.
 
-### 1.2 Terminology
+## 1.1 Notational Conventions
+
+The keywords **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL** are to be interpreted as described in RFC 2119.
+
+## 1.2 Conformance
+
+This specification describes data formats and rules for generating, exchanging, and processing AMP messages. Implementations claiming conformance MUST correctly implement all mandatory requirements expressed in this document that pertain to the features used. Implementations are not required to support all mandatory features if those features are not used in their message exchange scenarios.
+
+AMP can be used as the basis for other technologies providing richer or more specialized services. Conformance rules for such technologies are outside the scope of this specification.
+
+## 1.4 Relation to Other Specifications
+
+An AMP message is specified as a JSON object following this protocol's envelope, header, body, and MemoryGram structure. While examples are shown in JSON, other serializations or encodings MAY be used provided they conform to AMP's processing rules and bindings.
+
+AMP builds upon foundational concepts from SOAP Version 1.2, adapting them from XML to JSON and introducing agentic-specific constructs such as the MemoryGram.
+
+## 1.5 Example AMP Message
+
+```json
+{
+  "Envelope": {
+    "Header": {
+      "messageId": "AMP-001234",
+      "traceId": "Q4-LAUNCH-871",
+      "roles": ["planner", "vendor"],
+      "routingIntent": "delegate",
+      "ttl": 5,
+      "encryption": {
+        "type": "BYOE"
+      }
+    },
+    "Body": {
+      "task": "Execute Q4 launch",
+      "expectedOutput": ["timeline", "approval"],
+      "context": {
+        "urgency": "high"
+      }
+    },
+    "MemoryGram": {
+      "nodes": [
+        {
+          "id": "plan-123",
+          "type": "plan",
+          "metadata": {
+            "decay": 0.1,
+            "importance": 0.95
+          }
+        }
+      ],
+      "edges": [
+        {
+          "source": "plan-123",
+          "target": "budget-req",
+          "weight": 0.8,
+          "context": "derived from"
+        }
+      ],
+      "mode": "snapshot",
+      "encoding": "json"
+    }
+  }
+}
+```
+
+## 1.6 Terminology
 
 | Term | Meaning |
 |------|---------|
-| Agent | Autonomous software entity exchanging AMP messages. |
-| MemoryGram | JSON‑encoded, partial memory snapshot. |
-| RoutingIntent | Directive for intermediaries (e.g. delegate, broadcast). |
-| TTL | Hop‑count before message expiry. |
+| **Agent** | Autonomous software entity exchanging AMP messages. |
+| **AMP Node** | A process or device that generates, receives, or relays AMP messages. |
+| **MemoryGram** | JSON‑encoded, partial memory snapshot. |
+| **RoutingIntent** | Directive for intermediaries (e.g. delegate, broadcast). |
+| **TTL (Time-to-live)** | Hop‑count before message expiry. |
+
 
 ## 2 Protocol Overview
 
