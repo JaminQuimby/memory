@@ -1,3 +1,4 @@
+# Agentic Mesh Protocol (AMP)
 
 > A lightweight, JSON-based messaging framework for distributed, role‑aware, memory‑enhanced communication between autonomous agents.
 
