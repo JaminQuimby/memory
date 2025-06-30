@@ -1,612 +1,1800 @@
-# Agentic Mesh Protocol (AMP)
 
-*A lightweight, JSON‑based messaging framework for distributed, role‑aware, memory‑enhanced communication between autonomous distributed agents.*
+> A lightweight, JSON-based messaging framework for distributed, role‑aware, memory‑enhanced communication between autonomous agents.
 
 **Version:** Draft v0.1  
-**Author:** Jamin Quimby  
-**Last Updated:** 
+**Editors:** Jamin Quimby (author)
+**Last Updated:** June 2025
+
+---
 
 ## Abstract
 
-The Agentic Mesh Protocol (AMP) is a lightweight protocol intended for exchanging structured information between autonomous, agentic entities in decentralized, distributed environments. Part 1: Messaging Framework defines an extensible messaging framework expressed in JSON, introducing a novel MemoryGram construct that enables agents to share partial memory snapshots and contextual information without requiring centralized memory storage.
+The Agentic Mesh Protocol (AMP) is a lightweight, JSON‑native messaging framework designed to enable autonomous agents to exchange structured tasks, routing metadata, and decentralized graph snapshots (MemoryGrams) without relying on a central memory store. AMP leverages a simple frame structure comprising a Header with role‑aware routing, time‑to‑live controls, and extensible header blocks and a Body defining task payloads. By embedding immutable MemoryGrams alongside each message, AMP allows agents to share partial, portable immutable memory snapshots that can be extended on each hop. Transport‑agnostic and easily extensible through optional modules (e.g., attachments, decay policies, encryption), AMP supports HTTP/2 streaming, HTTP/1.1 multipart bindings, and secure BYOE encryption extensions. Part 1 of this specification defines the core messaging model and processing rules, providing a foundation for a modular, scalable, and resilient agentic agent communication ecosystem.
 
-This specification supports interoperable communication between heterogeneous Agentic Agents across organizational boundaries, building on foundational concepts from SOAP Version 1.2 while adapting them for modern distributed AI systems.
+---
+
+---
 
 ## Status of this Document
 
-This repository hosts a Working Draft. Breaking changes are expected until v1.0 is tagged.
+This is a Working Draft. It was produced by the AMP Incubator Working Group. Breaking changes may occur until the specification reaches Recommendation. Contributions and issues: linkedin.com/in/jaminquimby
 
-Contributions are welcome—see [Contributing](#contributing).
+---
 
 ## Conformance
 
-The key words MUST, SHALL, SHOULD, MAY, etc. are to be interpreted as described in [RFC 2119](https://tools.ietf.org/html/rfc2119).
+The keywords **MUST**, **SHALL**, **SHOULD**, **MAY**, **RECOMMENDED**, **OPTIONAL** have the meanings defined in [RFC 2119].
 
-## Table of Contents
+---
 
-1. [Introduction](#1-introduction)
-2. [Protocol Overview](#2-protocol-overview)
-3. [MemoryGram Model](#3-memorygram-model)
-4. [Security Considerations](#4-security-considerations)
-5. [Extensibility and Routing](#5-extensibility-and-routing)
-6. [Getting Started](#getting-started)
-7. [Contributing](#contributing)
-8. [Normative References](#normative-references)
-9. [Informative References](#informative-references)
-10. [License](#license)
+## Short Table of Contents
 
-major design goals for AMP are **simplicity** and **extensibility**. To achieve these, AMP deliberately omits certain features commonly found in distributed systems, such as built-in reliability, security, correlation, routing, and Message Exchange Patterns (MEPs). While AMP defines core messaging semantics, many features are expected to be implemented as extensions or by complementary protocols.
+1. Introduction
+    
+2. AMP Processing Model
+    
+3. AMP Extensibility Model
+    
+4. Protocol Binding Framework
+    
+5. AMP Message Construct
+    
+6. Use of URIs
+    
+7. Security Considerations
+    
+8. References  
+    A. MemoryGram Model (Appendix)
+    
 
-The AMP specification is organized into three parts:
+---
 
-* The **AMP processing model**, defining rules for processing an AMP message (see Section 2).
-* The **AMP extensibility model**, introducing concepts of AMP features and modules (see Section 3).
-* The **AMP protocol binding framework**, describing rules for defining transport bindings to carry AMP messages (see Section 4).
+## 1 Introduction
 
-The AMP message construct defines the structure of an AMP message (see Section 5).
+The **Agentic Mesh Protocol (AMP)** is a lightweight, JSON-native protocol intended for exchanging structured tasks, metadata, and decentralized cognitive memory snapshots in distributed agent networks. It uses standard JSON technologies to define an extensible messaging framework containing an frame construct that can be transported over a variety of bindings. The design is independent of any specific programming model or agent implementation.
 
-An introductory primer is provided as a non-normative document to explain AMP's core concepts and typical usage scenarios.
+AMP achieves two primary goals:
 
-## 1.1 Notational Conventions
+1. **Simplicity:** Provide a minimal core (frame, Header, Body, MemoryGrams)
+    
+2. **Extensibility:** Enable new capabilities—attachments, decay policies, security modules—as optional modules without altering the core.
+    
 
-The keywords **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**, **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL** are to be interpreted as described in RFC 2119.
+This specification consists of:
 
-## 1.2 Conformance
+1. **AMP Processing Model** (Section 2) — rules for processing a single AMP message in isolation.
+    
+2. **AMP Extensibility Model** (Section 3) — concepts of features and modules, and how extensions integrate.
+    
+3. **Protocol Binding Framework** (Section 4) — rules for defining transports (HTTP, HTTP/2, SMTP, AMQP, gRPC).
+    
+4. **AMP Message Construct** (Section 5) — JSON frame structure and field semantics.
+    
 
-This specification describes data formats and rules for generating, exchanging, and processing AMP messages. Implementations claiming conformance MUST correctly implement all mandatory requirements expressed in this document that pertain to the features used. Implementations are not required to support all mandatory features if those features are not used in their message exchange scenarios.
+Optional adjunct modules (e.g., multi-gram MemoryGrams, attachments, decayPolicy) are defined in Part 2.
 
-AMP can be used as the basis for other technologies providing richer or more specialized services. Conformance rules for such technologies are outside the scope of this specification.
 
-## 1.4 Relation to Other Specifications
+### 1.1 Notational Conventions
 
-An AMP message is specified as a JSON object following this protocol's envelope, header, body, and MemoryGram structure. While examples are shown in JSON, other serializations or encodings MAY be used provided they conform to AMP's processing rules and bindings.
+This specification uses the keywords **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **MAY**, and **OPTIONAL** as defined by [RFC 2119].
 
-AMP builds upon foundational concepts from SOAP Version 1.2, adapting them from XML to JSON and introducing agentic-specific constructs such as the MemoryGram.
+Data types (e.g., string, number, array, object) follow the JSON Schema vocabulary as described in [RFC 8259].
 
-## 1.5 Example AMP Message
+JSON Pointer notation (RFC 6901) is used to reference fields within examples.
 
-```json
+All parts of this specification are normative unless explicitly marked as non-normative.
+### 1.2 Conformance
+
+This specification defines the JSON message formats and the rules for generating, exchanging, and processing AMP messages. It does not mandate the scope of any particular implementation, but **MUST** be implemented without violating any mandatory requirement.
+
+To claim conformance with AMP Part 1, an implementation **MUST** correctly implement all **MUST** requirements in Sections 2–5 that pertain to its supported use cases. Implementations are not required to support every optional feature or module.
+
+An implementation **MAY** support any number of optional adjunct modules defined in Part 2. To claim conformance to a module, the implementation **MUST** satisfy all mandatory requirements in that module’s specification.
+
+Specifications or frameworks that build on AMP **MAY** provide richer or specialized services, but **MUST** remain consistent with the mandatory core requirements of Part 1. Conformance rules for such extensions are outside the scope of this document and should be defined by their own specifications.
+
+AMP is designed to enable common agent messaging scenarios; non-normative examples are provided in Part 2.
+
+### 1.3 Relation to Other Specifications
+
+AMP messages are specified as JSON data structures rather than an XML Information Set. While examples may use JSON syntax, implementations MAY support alternate representations for transmitting AMP messages between nodes (see AMP Protocol Binding Framework).
+
+Some information items defined by this document (see AMP Message Construct) are identified using namespace-qualified names. Refer to Table 1 for namespace identifiers defined herein.
+
+Note: This specification uses the term JSON Expanded Name to refer to the pair {absolute URI reference, local-name} for a value representing a qualified name. Future specifications or errata may update terminology to align with evolving namespace recommendations.
+
+AMP does not require JSON Schema processing for validation of element and attribute values defined in this specification. Values defined herein MUST be explicitly included in the transmitted AMP message except where noted otherwise (see AMP Message Construct).
+
+AMP attribute types follow JSON Schema [JSON Schema] definitions. Unless stated otherwise, all lexical forms supported by JSON Schema are valid, and forms representing the same value are equivalent for AMP processing (e.g., boolean values true and 1 are treated equivalently). For brevity, examples in this document refer to one canonical form.
+
+Applications carrying data not defined by this specification MAY specify additional validation steps. Schema language and validation technology choices are at the application’s discretion.
+
+AMP uses JSON Pointer [RFC 6901] for referencing locations within AMP messages (see Use of URIs in AMP).
+
+The media type "application/amp+json" SHOULD be used for JSON serializations of the AMP message model.
+
+### 1.4 Example AMP Message
+
+The following example shows a notification-style AMP message with three key components: an application-defined header block (`alertControl`) containing priority and expiration data, a Body payload (`alert`), and an immutable MemoryGrams snapshot. Intermediary nodes can use the header block to prioritize message forwarding, while any node along the path can inspect or relay the MemoryGrams data. MemoryGrams are immutable snapshots that any node can generate, annotate, encrypt, and relay following the same `role`, `mustUnderstand`, and `relay` rules that apply to header blocks.
+
+```
 {
-  "Envelope": {
+  "frame": {
     "Header": {
-      "messageId": "AMP-001234",
-      "traceId": "Q4-LAUNCH-871",
-      "roles": ["planner", "vendor"],
-      "routingIntent": "delegate",
-      "ttl": 5,
-      "encryption": {
-        "type": "BYOE"
-      }
-    },
-    "Body": {
-      "task": "Execute Q4 launch",
-      "expectedOutput": ["timeline", "approval"],
-      "context": {
-        "urgency": "high"
-      }
-    },
-    "MemoryGram": {
-      "nodes": [
+      "messageId": "amp-1001",
+      "traceId": "trace-alert-20250626",
+      "roles": ["monitor","notifier"],
+      "routingIntent": "broadcast",
+      "ttl": 3,
+      "headerBlocks": [
         {
-          "id": "plan-123",
-          "type": "plan",
-          "metadata": {
-            "decay": 0.1,
-            "importance": 0.95
+          "type": "alertControl",
+          "role": "urn:agentic:mesh:role:next",
+          "mustUnderstand": true,
+          "content": {
+            "priority": 1,
+            "expires": "2025-06-26T15:00:00Z"
           }
         }
-      ],
-      "edges": [
-        {
-          "source": "plan-123",
-          "target": "budget-req",
-          "weight": 0.8,
-          "context": "derived from"
-        }
-      ],
-      "mode": "snapshot",
-      "encoding": "json"
-    }
-  }
-}
-```
-
-## 1.6 Terminology
-
-| Term | Meaning |
-|------|---------|
-| **Agent** | Autonomous software entity exchanging AMP messages. |
-| **AMP Node** | A process or device that generates, receives, or relays AMP messages. |
-| **MemoryGram** | JSON‑encoded, partial memory snapshot. |
-| **RoutingIntent** | Directive for intermediaries (e.g. delegate, broadcast). |
-| **TTL (Time-to-live)** | Hop‑count before message expiry. |
-
-
-# 2 Protocol Overview
-
-An AMP message has three top-level members:
-
-```json
-{
-  "Envelope": {
-    "Header": { /* metadata */ },
-    "Body": { /* task & payload */ },
-    "MemoryGram": { /* context snapshot */ }
-  }
-}
-```
-
-## 2.1 Header
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| messageId | string | ✓ | Globally unique identifier. |
-| traceId | string | ✓ | Correlates linked messages. |
-| roles | array | ✓ | Actor roles (e.g. ["planner","vendor"]). |
-| routingIntent | string | ✓ | How intermediaries handle the message. |
-| ttl | integer | ✓ | Hop count before expiry. |
-| encryption | object | — | Strategy metadata (BYOE, keys, etc.). |
-
-## 2.2 Body
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| task | string | ✓ | Task name or identifier. |
-| expectedOutput | array | ✓ | Outputs the sender requires. |
-| context | object | — | Arbitrary task parameters. |
-
-## 2.3 MemoryGram
-
-Portable snapshot of local memory (graph form):
-
-```json
-"MemoryGram": {
-  "nodes": [
-    {
-      "id": "plan-123",
-      "type": "plan",
-      "metadata": { "importance": 0.95, "decay": 0.1 }
-    }
-  ],
-  "edges": [
-    {
-      "source": "plan-123",
-      "target": "budget-req",
-      "weight": 0.8,
-      "context": "derived from"
-    }
-  ],
-  "mode": "snapshot",
-  "encoding": "json"
-}
-```
-
-# 3 MemoryGram Model
-
-## 3.1 Nodes
-
-| Field | Type | Description |
-|-------|------|-------------|
-| id | string | Unique node ID. |
-| type | string | Category (e.g. plan, issue). |
-| metadata | object | Arbitrary key-values (importance, decay, etc.). |
-
-## 3.2 Edges
-
-| Field | Type | Description |
-|-------|------|-------------|
-| source | string | Source node ID. |
-| target | string | Target node ID. |
-| weight | number | Strength (0-1). |
-| context | string | Optional label. |
-
-## 3.3 Lifecycle
-
-1. **Generate** – built locally via confidence queries.
-2. **Transmit** – included in the envelope.
-3. **Interpret** – recipient treats as hints not mandates.
-4. **Decay/Reinforce** – recalculated independently per agent.
-
-# 4 AMP Processing Model
-
-The Agentic Mesh Protocol (AMP) defines a distributed processing model in which an AMP message originates from an initial sender and is delivered to an ultimate receiver through zero or more intermediaries. This model supports a variety of message exchange patterns, including one-way messages, request/response interactions, and peer-to-peer conversations.
-
-This section specifies how an AMP node processes a single AMP message in isolation, without maintaining state or correlation between multiple messages. Coordination of multi-message exchanges is the responsibility of higher-level protocols or features built on top of AMP.
-
-Section 5 describes AMP's extensibility model and how extensions may interact with the processing model and transport bindings. Section 6 defines the protocol binding framework, which governs how AMP messages are exchanged over different transport protocols.
-
-## 4.1 AMP Nodes
-
-An AMP node is any entity that sends, receives, or forwards AMP messages. It may act as an initial sender, an ultimate receiver, or an intermediary. Each AMP node is identified by a unique URI.
-
-Each AMP node MUST process messages according to the AMP processing model defined in this section and throughout this specification.
-
-## 4.2 AMP Roles and Nodes
-
-When processing a message, an AMP node acts in one or more roles, each identified by a URI known as the AMP role name. The roles assumed by a node MUST remain constant during processing of a given message.
-
-This specification defines several core roles:
-
-| Role Name | URI | Description |
-|-----------|-----|-------------|
-| next | `urn:agentic:mesh:role:next` | Role assumed by all intermediaries and ultimate receivers. |
-| none | `urn:agentic:mesh:role:none` | Role that nodes MUST NOT act in. |
-| ultimateReceiver | `urn:agentic:mesh:role:ultimateReceiver` | Role assumed by the final message recipient. |
-
-Other role names MAY be defined as needed by applications or extensions.
-
-AMP role names primarily identify the role(s) a node plays during message processing; they do not directly imply routing or delivery semantics. For example, AMP roles MAY be named with a URI useable to route AMP messages to an appropriate AMP node. Conversely, it is also appropriate to use AMP roles with names that are related more indirectly to message routing (e.g., `http://example.org/banking/anyAccountMgr`) or which are unrelated to routing (e.g., a URI meant to identify "all cache management software").
-
-With the exception of the three AMP role names defined above, this specification does not prescribe the criteria by which a given node determines the set of roles in which it acts on a given message. For example, implementations can base this determination on factors including, but not limited to: hard coded choices in the implementation, information provided by the underlying protocol binding (e.g., the URI to which the message was physically delivered), or configuration information provided by users during system installation.
-
-## 4.3 Targeting Header Blocks
-
-AMP header blocks MAY specify a role attribute to target the block at nodes operating in that role.
-
-A header block is considered targeted at an AMP node if the node acts in a role matching the header block's role attribute. The role attribute is specified in the JSON header block structure as:
-
-```json
-{
-  "type": "headerBlockType",
-  "role": "urn:agentic:mesh:role:next",
-  "mustUnderstand": true,
-  "relay": false,
-  "content": { ... }
-}
-```
-
-Header blocks targeted at the `none` role MUST NOT be processed. Such AMP header blocks MAY carry data that is required for processing of other AMP header blocks. Unless removed by the action of an intermediary (see 2.7 Relaying Messages), such blocks are relayed with the message to the ultimate receiver.
-
-Untargeted or non-understood header blocks MAY be relayed to ultimate receivers unless removed by intermediaries.
-
-## 4.4 Understanding Header Blocks
-
-An AMP node is said to understand a header block if it has been implemented to fully conform to and implement the semantics specified for the header block's type identifier.
-
-Header blocks MAY carry a `mustUnderstand` attribute set to `true`, making them mandatory:
-
-```json
-{
-  "type": "criticalProcessing",
-  "role": "urn:agentic:mesh:role:next",
-  "mustUnderstand": true,
-  "content": { ... }
-}
-```
-
-Mandatory AMP header blocks are presumed to somehow modify the semantics of other AMP header blocks or the message body. Therefore, for every mandatory AMP header block targeted to a node, that node MUST either process the header block according to its specification or not process the AMP message at all, and instead generate a fault. Tagging AMP header blocks as mandatory thus assures that such modifications will not be silently (and, presumably, erroneously) ignored by an AMP node to which the header block is targeted.
-
-An AMP node MUST either process every mandatory header block targeted at it or generate a fault with code `amp:MustUnderstand`. Ignoring mandatory header blocks is not permitted.
-
-The `mustUnderstand` attribute is not intended as a mechanism for detecting errors in routing, misidentification of nodes, failure of a node to serve in its intended role(s), etc. This specification therefore does not require any fault to be generated based on the presence or value of the `mustUnderstand` attribute on an AMP header block not targeted at the current processing node.
-
-## 4.5 Structure and Interpretation of AMP Bodies
-
-An ultimate AMP receiver MUST correctly process the message body according to the semantics agreed upon by communicating agents. The message body is represented as a JSON object within the AMP message envelope:
-
-```json
-{
-  "Envelope": {
-    "Header": {
-      "messageId": "msg-12345",
-      "traceId": "trace-abc",
-      "roles": ["planner", "vendor"],
-      "routingIntent": "direct",
-      "ttl": 10
+      ]
     },
     "Body": {
-      "task": "processRequest",
-      "expectedOutput": ["status", "result"],
+      "task": "alert",
+      "expectedOutput": ["acknowledgment"],
       "context": {
-        "priority": "high",
-        "deadline": "2025-06-27T10:00:00Z"
+        "message": "Pick up Mary at school at 2pm"
       }
     },
-    "MemoryGram": { ... }
+    "MemoryGrams": [
+        {
+          "id": "alert-evt",
+          "type": "event",
+          "metadata": { "importance": 0.9, "decay": 0.05 },
+           "role": "next",
+          "encryption": { "scheme": "homomorphic", "keyId": "key-123" }
+        }
+      ]
+    }
+}
+```
+#### 1.4.1 Mixed-Content Example
+
+To illustrate mixed content in AMP messages—interleaving text and structured payloads—a feature spec can define a `content` array in the Body (or any header block) as shown below:
+
+```
+{
+  "frame": {
+    "Body": {
+      "content": [
+        "System alert generated at 2025-06-26T15:00:00Z.
+",
+        {
+          "type": "json",
+          "payload": { "metric": "cpuUsage", "value": 92 }
+        },
+        "
+Please investigate immediate spike.
+",
+        {
+          "type": "image",
+          "mediaType": "image/png",
+          "data": "iVBORw0KGgoAAAANSUhEUgAAA..."
+        }
+      ]
+    }
   }
 }
 ```
 
-With the exception of AMP faults, this specification mandates no particular structure or interpretation of the body content beyond the required fields (`task` and `expectedOutput`), and provides no standard means for specifying the processing to be done. The body content is determined by the agreement between communicating agents or by higher-level protocols built on AMP.
+In this pattern, plain text strings and typed objects co-exist in a single array, enabling rich mixed-content flows within a JSON-native AMP message.
+### 1.5 Terminology
 
-AMP nodes MAY make reference to any information in the AMP envelope when processing the message body or AMP header blocks. For example, a caching function can cache the entire AMP message, if desired.
+This section defines key terms and concepts used in this specification.
 
-## 4.6 Processing MemoryGram
+#### 1.5.1 Protocol Concepts
 
-The MemoryGram component provides contextual information to assist in message processing but does not mandate specific processing behavior. AMP nodes SHOULD process MemoryGram data according to the following principles:
+**AMP**  
+The formal set of conventions governing the format, processing, and routing rules of AMP messages.
 
-1. **Treat as hints, not mandates**: MemoryGram data provides context and suggestions but does not override explicit message processing rules.
+**AMP node**  
+An entity that transmits, receives, processes, or forwards AMP messages, according to the AMP Processing Model (Section 2).
 
-2. **Independent interpretation**: Each node interprets MemoryGram data according to its own capabilities and policies.
+**AMP role**  
+A function that an AMP node assumes when processing a message. Roles are represented by tokens (e.g., `next`, `ultimateReceiver`) that map to IRIs.
 
-3. **Optional processing**: Nodes MAY ignore MemoryGram data entirely without affecting message validity.
+**AMP binding**  
+A specification of how AMP messages are carried over an underlying transport protocol (Section 4). Examples include HTTP/1.1 multipart, HTTP/2 streaming, SMTP.
 
-4. **Context integration**: When processed, MemoryGram data SHOULD be integrated with the node's local memory and context.
+**AMP feature**  
+An optional extension to the core messaging framework (Section 3), such as Attachments, DecayPolicy, or Encryption modules.
 
-5. **Privacy preservation**: Nodes SHOULD respect the privacy implications of MemoryGram data and handle it according to their security policies.
+**AMP module**  
+A self‑contained specification that defines the syntax, semantics, and processing rules for one or more AMP header blocks or MemoryGram behaviors.
 
-MemoryGram processing MAY influence how nodes interpret the message body, select processing strategies, or generate responses, but MUST NOT change the fundamental semantics of the message processing model.
+**Message Exchange Pattern (MEP)**  
+A template for a sequence of AMP messages between nodes (e.g., request-response, event-stream), specified as an AMP feature.
 
-## 4.7 Message Processing Rules
+**AMP application**  
+Software or agent framework that produces, consumes, or otherwise acts upon AMP messages in accordance with this specification.
 
-This section sets out the rules by which AMP messages are processed. Nothing in this specification prevents the use of optimistic concurrency, roll back, or other techniques that might provide increased flexibility in processing order. Unless otherwise stated, processing of all generated AMP messages, AMP faults and application-level side effects MUST be semantically equivalent to performing the following steps separately, and in the order given:
+#### 1.5.2 Data Encapsulation Concepts
 
-1. **Validate message structure**: Ensure the message conforms to the AMP envelope structure with required Header, Body, and MemoryGram components.
+**AMP message**  
+The basic unit of communication between AMP nodes, represented as a JSON `frame` object.
 
-2. **Determine the roles** the node acts in for this message. The contents of the AMP envelope, including Header fields, Body content, and MemoryGram data, MAY be inspected in making such determination.
+**frame**  
+The outermost JSON object of an AMP message containing `Header`, `Body`, and `MemoryGrams`.
 
-3. **Process Header requirements**: Validate required Header fields (messageId, traceId, roles, routingIntent, ttl) and process any routing or security directives.
+**Header**  
+A collection of routing metadata, roles, TTL, encryption settings, and optional header blocks.
 
-4. **Check TTL**: Decrement the ttl value and generate a fault with code `amp:TTLExpired` if the value reaches zero before processing completes.
+**Header block**  
+A JSON object within `headerBlocks` that carries extension data (e.g., `alertControl`), targeted at nodes by role and optional processing flags (`mustUnderstand`, `relay`).
 
-5. **Identify all mandatory header blocks** targeted at the node (if using extended header block processing).
+**Body**  
+A JSON object defining the task payload (`task`, `expectedOutput`, `context`).
 
-6. **Check understanding**: If one or more of the AMP header blocks identified in the preceding step are not understood by the node, then generate a single AMP fault with code `amp:MustUnderstand`. If such a fault is generated, any further processing MUST NOT be done. Faults relating to the contents of the message body MUST NOT be generated in this step.
+**MemoryGram**  
+A JSON object representing a partial memory snapshot (nodes, edges, metadata), carried alongside the message.
 
-7. **Process MemoryGram**: Optionally process the MemoryGram according to section 4.6, integrating context information as appropriate.
+**AMP fault**  
+A structured error object indicating processing failures (e.g., `amp:MustUnderstand`, `amp:TTLExpired`). Faults are delivered in lieu of normal response bodies.
 
-8. **Process Body and any header blocks**: Process the message Body according to the specified task and any AMP header blocks targeted at the node. An AMP node MAY also choose to process non-mandatory AMP header blocks targeted at it.
+#### 1.5.3 Message Sender and Receiver Concepts
 
-9. **Relay if required**: In the case of an AMP intermediary, and where the AMP message exchange pattern and results of processing (e.g., no fault generated) require that the AMP message be sent further along the message path, relay the message as described in section 4.8 Relaying Messages.
+**AMP sender**  
+An AMP node that originates an AMP message.
 
-In all cases where an AMP header block is processed, the AMP node MUST understand the AMP header block and MUST do such processing in a manner fully conformant with the specification for that header block. The successful processing of one header block does not guarantee successful processing of another block with the same type within the same message: the specification for the header block determines the circumstances in which such processing would result in a fault.
+**AMP receiver**  
+An AMP node that accepts and processes an AMP message.
 
-**Fault Generation**: Failure is indicated by the generation of a fault. AMP message processing MAY result in the generation of an AMP fault; more than one AMP fault MUST NOT be generated when processing an AMP message.
+**Message path**  
+The sequence of AMP nodes through which a message travels: initial sender, zero or more intermediaries, and an ultimate receiver.
 
-A message may contain or result in multiple errors during processing. Except where the order of detection is specifically indicated, an AMP node is at liberty to reflect any single fault from the set of possible faults prescribed for the errors encountered. The selection of a fault need not be predicated on the application of the "MUST", "SHOULD" or "MAY" keywords to the generation of the fault, with the exception that if one or more of the prescribed faults is qualified with the "MUST" keyword, then any one fault from the set of possible faults MUST be generated.
+**Initial sender**  
+The AMP sender at the start of the message path.
 
-**Processing Order**: The processing of one or more AMP header blocks MAY control or determine the order of processing for other AMP header blocks and/or the message body. In the absence of such a controlling AMP header block, the order of header and body processing is at the discretion of the AMP node. Header blocks MAY be processed in arbitrary order. Header block processing MAY precede, MAY be interleaved with, or MAY follow processing of the message body.
+**AMP intermediary**  
+An AMP node that both receives and forwards a message, potentially processing header blocks and MemoryGrams.
 
-The order of processing header blocks and the body is at the node's discretion unless overridden by extensions.
+**Ultimate receiver**  
+The final AMP node in the message path that processes the `Body` and any header blocks targeted at it.
 
-Generate faults when processing errors occur. Only one fault per message is permitted.
+---
 
-## 4.8 Relaying Messages
+## ## 2 AMP Processing Model
 
-AMP messages flow from initial senders to ultimate receivers via intermediaries. While AMP does not define routing or forwarding semantics, such features MAY be specified by extensions.
+AMP provides a distributed, role‑aware processing model in which an AMP message originates at an initial sender and travels to an ultimate receiver via zero or more intermediaries. This model can support multiple Message Exchange Patterns (MEPs) — one-way, request/response, event streams, and peer-to-peer conversations — implemented as AMP features (see Section 3).
 
-AMP defines two different types of intermediaries:
+This section defines the AMP Processing Model, specifying how an AMP node processes a single message in isolation, without retaining state or correlating across messages. Any multi‑message coordination (e.g., transaction lifecycles, retries) is delegated to higher‑level modules or MEP definitions.
 
-- **Forwarding intermediaries**: Process and relay messages without significantly changing content beyond what is required by the AMP processing model.
-- **Active intermediaries**: May modify messages, add or remove headers, or perform other processing (e.g., security, annotations) not described by inbound headers.
+Section 3 (AMP Extensibility Model) describes how features and modules integrate with the Processing Model. Section 4 (Protocol Binding Framework) defines how AMP messages are mapped onto diverse transports such as HTTP/2 streaming or SMTP.
 
-### 4.8.1 Relaying Header Blocks
+### 2.1 AMP Nodes and Roles
 
-The relaying of AMP header blocks targeted at an intermediary AMP node depends on whether the AMP header blocks are processed or not by that node. An AMP header block is said to be **reinserted** if the processing of that header block determines that the header block is to be reinserted in the forwarded message. The specification for an AMP header block may call for the header block to be relayed in the forwarded message if the header block is targeted at a role played by the AMP intermediary, but not otherwise processed by the intermediary. Such header blocks are said to be **relayable**.
+An **AMP node** may be an initial sender, intermediary, or ultimate receiver. Each node is identified by a globally unique URI string. Nodes **MUST** process messages per this model.
 
-An AMP header block MAY carry a `relay` attribute. When the value of such an attribute is `true`, the header block is said to be relayable:
+AMP roles are represented as simple, case-sensitive tokens in JSON, and **MUST** map unambiguously to full IRIs. To keep JSON idiomatic, the spec defines the following core tokens and their corresponding IRIs:
 
-```json
+|Token|IRI|Description|
+|---|---|---|
+|`next`|`urn:agentic:mesh:role:next`|Intermediaries and ultimate receivers.|
+|`none`|`urn:agentic:mesh:role:none`|Nodes **MUST NOT** act in this role.|
+|`ultimateReceiver`|`urn:agentic:mesh:role:ultimateReceiver`|Final message recipient.|
+
+Additional role tokens **MAY** be defined by extensions. Implementations **MUST** resolve each token to its full IRI when applying routing or policy decisions.
+
+Example:
+
+```
+"roles": ["next", "ultimateReceiver"]
+```
+
+Using bare tokens avoids XML-style URNs in JSON and aligns with practices in protocols like HTTP status codes or MQTT quality-of-service levels.
+
+### 2.2 AMP Roles and Nodes
+
+In processing an AMP message, an AMP node assumes one or more roles, each uniquely identified by a URI known as the AMP role identifier. Roles assigned to a node MUST remain invariant throughout the processing of an individual AMP message. This specification explicitly addresses the processing of single AMP messages and does not define node behavior concerning role variability across different messages.
+
+Table 2 defines three standard AMP roles that carry special significance within AMP message processing:
+
+Table 2: AMP Roles Defined by this Specification
+
+|Short-name|Name|Description|
+|---|---|---|
+|next|"amp://role/next"|All AMP intermediaries and the ultimate AMP receiver MUST act in this role.|
+|none|"amp://role/none"|AMP nodes MUST NOT assume this role.|
+|ultimateReceiver|"amp://role/ultimateReceiver"|Only the ultimate AMP receiver MUST assume this role.|
+
+Additional AMP role identifiers MAY be introduced to support specific application requirements.
+
+AMP roles serve primarily to identify AMP nodes and their associated processing responsibilities. Unlike direct routing identifiers, AMP role identifiers do not inherently define routing or message exchange semantics. For instance, an AMP role identifier MAY be a URI used directly for routing AMP messages to the correct node, or it MAY serve an indirect or non-routing purpose, such as categorizing nodes by functional domain (e.g., "amp://example.org/finance/accountManager") or representing roles unrelated to routing (e.g., identifying caching services with a URI indicating idempotency and safe replay).
+
+Beyond the three standard AMP roles defined in Table 2, this specification does not impose specific rules for determining the roles a node will assume for processing a given message. Implementations MAY decide roles based on static configuration, information from the underlying transport binding (such as delivery endpoint URIs), or dynamic system configuration set by administrators or users during deployment.
+
+### 2.3 Targeting AMP Header Blocks
+
+An AMP header block MAY include a role attribute (see AMP role Attribute) used to target the header block specifically at AMP nodes operating in the specified role. This specification refers to the value of the AMP role attribute as the AMP role associated with the corresponding AMP header block.
+
+An AMP header block is considered targeted at an AMP node if the AMP role of the header block matches a role assumed by that AMP node. AMP header blocks targeted at the special role "amp://role/none" are never formally processed. Such AMP header blocks MAY contain data required for processing other AMP header blocks. Unless explicitly removed by an intermediary (see Relaying AMP Messages), these header blocks are relayed with the AMP message to the ultimate AMP receiver (see also AMP Modules).
+
+### 2.4 Understanding AMP Header Blocks
+
+Specifications defining various header functions (AMP modules) are anticipated to emerge over time (see AMP Modules), and some AMP nodes may implement software supporting one or more of these extensions. An AMP header block is understood by an AMP node if the software at that node is designed to fully adhere to and implement the semantics associated with the JSON-defined name of the outermost element of that header block.
+
+An AMP header block MAY contain a mustUnderstand attribute (see AMP mustUnderstand Attribute). If the value of this attribute is set to "true", the AMP header block is considered mandatory.
+
+Mandatory AMP header blocks typically modify the interpretation or handling of other AMP header blocks or the AMP body elements. Consequently, each mandatory AMP header block targeted at a node MUST be processed by that node, or the node MUST cease processing the AMP message entirely and generate a fault (see Processing AMP Messages and AMP Fault). Marking AMP header blocks as mandatory ensures that critical modifications will not be silently or erroneously ignored by the node targeted by the header block.
+
+The mustUnderstand attribute is not designed to detect routing errors, misidentified nodes, or node role assignment failures. Any of these conditions might prevent proper processing of an AMP header block. This specification does not mandate the generation of faults based solely on the presence or value of the mustUnderstand attribute for AMP header blocks not targeted at the current processing node. Specifically, it is not considered an error for an ultimate AMP receiver to receive an AMP message containing a mandatory header block targeted at a role that the ultimate receiver does not assume. This scenario can occur if the header block persists due to routing or targeting errors at preceding intermediaries.
+
+Only one fault per message; order of header and body processing is at node’s discretion unless extensions specify otherwise.
+
+### 2.5 Structure and Interpretation of AMP Bodies
+
+An ultimate AMP receiver MUST correctly process the immediate children of the AMP body (see AMP Body). However, with the exception of AMP faults (see AMP Fault), this specification does not mandate any particular structure or interpretation for these elements, nor does it provide a standard mechanism for defining their processing semantics.
+
+### 2.6 Processing AMP Messages
+
+This section defines the rules for processing AMP messages. Implementations MAY employ optimistic concurrency, rollbacks, or other techniques to allow flexibility in processing order. Unless otherwise specified, all AMP messages, AMP faults, and application-level side effects MUST produce results equivalent to executing the following steps in sequence:
+
+1. Determine the set of roles the node will assume. The contents of the AMP frame, including any AMP header blocks and the AMP body, MAY be examined to inform this decision.
+    
+2. Identify all mandatory AMP header blocks targeted at the node (i.e., header blocks with mustUnderstand="true").
+    
+3. If any mandatory header block is not understood by the node, generate a single AMP fault with a code of "MustUnderstand". No further processing of the message is permitted after such a fault is raised. Faults regarding the AMP body content MUST NOT be generated in this step.
+    
+4. Process all mandatory AMP header blocks targeted at the node and, if the node is the ultimate AMP receiver, process the AMP body as well. Nodes MAY also choose to process non-mandatory header blocks targeted at them.
+    
+5. If the node is an intermediary and message exchange patterns require forwarding (for example, no fault was generated), relay the AMP message as described in Relaying AMP Messages.
+    
+6. When processing any header block, the node MUST understand and conform fully to the header block’s specification. Processing one header block does not guarantee processing another with the same name; header specifications determine fault conditions. Ultimate AMP receivers MUST process the AMP body consistent with section 2.5.
+    
+7. AMP faults indicate processing failures. A single AMP message MAY result in multiple error conditions, but only one fault MUST be generated. When several faults are possible, any one MAY be selected unless one is qualified with "MUST", in which case a fault from the set of "MUST" faults MUST be chosen.
+    
+
+Nodes MAY utilize any information within the AMP frame (headers or body) when processing. For example, caching functions MAY cache entire AMP messages.
+
+Header and body processing order MAY be controlled by specific header blocks. In the absence of such control, nodes have discretion over processing order: header blocks MAY be processed before, interleaved with, or after body processing.
+
+Note: These rules apply per node. Extensions may enforce ordering across multiple nodes along the message path, generating sender faults if header blocks survive past intended points based on mustUnderstand attributes.
+
+### 2.7 Relaying AMP Messages
+
+AMP messages originate at an initial AMP sender and traverse zero or more AMP intermediaries before reaching an ultimate AMP receiver. Although AMP does not define explicit routing or forwarding rules, such functionality can be specified via AMP features (see AMP Extensibility Model).
+
+AMP distinguishes two intermediary types:
+
+• Forwarding Intermediaries: These nodes transparently relay AMP messages without altering header or body content, except for removing or adding extensions as dictated by AMP features.
+
+• Active Intermediaries: These nodes may inspect and process header blocks, modify message content, or inject new header blocks before forwarding to the next hop.
+
+When relaying:
+
+1. The intermediary MUST forward all header blocks not marked for removal by intermediary-specific rules.
+    
+2. The intermediary MAY remove header blocks targeted at its own roles once processed.
+    
+3. The intermediary MUST preserve message integrity and any mandatory header semantics unless a fault or modification is required by an AMP module.
+    
+4. After processing, the intermediary relays the message to the next node in the path, as determined by routing metadata in the AMP header.
+    
+
+Use of forwarding and active intermediaries allows flexible message distribution while maintaining AMP’s modular and decentralized processing model.
+
+### 2.7.1 Relaying AMP Header Blocks
+
+Relaying of AMP header blocks at intermediary nodes depends on whether those blocks are processed by the intermediary. A header block is considered reinserted if, after processing, the intermediary decides it should appear in the forwarded message. Some header block specifications may require that a block targeted at roles assumed by the intermediary be relayed even if not processed; such blocks are termed relayable.
+
+An AMP header block MAY include a relay attribute (see AMP relay Attribute). When this attribute’s value is "true", the header block is relayable. Relayable header blocks are forwarded by forwarding intermediaries as described in section 2.7.2.
+
+The relay attribute has no effect on header blocks not targeted at the intermediary’s roles, nor does it override mandatory (mustUnderstand) semantics. It also does not affect processing by the ultimate AMP receiver.
+
+Table 3 summarizes an intermediary’s forwarding behavior for a header block:
+
+|Role|Assumed by Node|Understood & Processed|Forwarded?|
+|---|---|---|---|
+|next|Yes|Yes|No, unless reinserted|
+|next|No|n/a|Yes, if relay="true"|
+|user-defined|Yes|Yes|No, unless reinserted|
+|user-defined|No|n/a|Yes, if relay="true"|
+|ultimateReceiver|Yes|Yes|n/a|
+|none|No|n/a|Yes (always relayed)|
+
+### 2.7.2 AMP Forwarding Intermediaries
+
+When one or more AMP header blocks or the message exchange pattern require forwarding, the processing node acts as an AMP forwarding intermediary on behalf of the inbound message initiator.
+
+AMP forwarding intermediaries MUST follow the AMP processing model defined in section 2.6 Processing AMP Messages. Additionally, when constructing a forwarded AMP message, they MUST:
+
+1. Remove all AMP header blocks that have been processed by the intermediary.
+    
+2. Remove all non-relayable AMP header blocks targeted at this intermediary that were ignored during processing.
+    
+3. Retain all relayable AMP header blocks targeted at this intermediary that were ignored during processing.
+    
+
+Forwarding intermediaries MUST also comply with any AMP forwarding feature specifications in use. Each feature’s specification MUST describe the required semantics for constructing the forwarded message, including rules for inserting or reinserting header blocks. Header reinsertion may be indistinguishable from leaving blocks in place; this process emphasizes the need for each node on the path to explicitly handle relevant header blocks before forwarding.
+
+### 2.7.2.1 Relayed Infoset
+
+This section defines how AMP forwarding intermediaries handle the JSON structure of relayed messages when no additional feature processing overrides these rules:
+
+1. Preserve all frame-level properties by default, except when explicitly removed by feature rules.
+    
+2. Remove header entries that have been processed by the intermediary.
+    
+3. Insert or reinstate header entries according to AMP feature specifications.
+    
+4. If the "headers" array is absent and features require header insertion, initialize an empty "headers" array.
+    
+5. Preserve all header properties (including role, mustUnderstand, and relay flags) unless a feature dictates removal.
+    
+6. Expand any qualified names into a standardized JSON representation (e.g., full URI plus local name).
+    
+7. Optional metadata fields such as "baseUri" or "charset" MAY be retained or omitted based on feature needs.
+    
+8. Additional application-specific properties in the frame or headers MAY be retained or pruned per feature rules.
+    
+9. For message signing, use a defined JSON canonicalization profile (e.g., RFC 8785) to ensure consistent encoding across nodes.
+    
+10. Mixed-content scenarios (interleaving text and objects) are not natively supported; features requiring such patterns should define explicit schema structures.
+    
+
+Note: These rules focus on JSON-native handling. AMP features should rely on clear, schema-driven definitions rather than legacy XML concepts.
+
+### 2.7.3 AMP Active Intermediaries
+
+Beyond the behavior of AMP forwarding intermediaries, active AMP intermediaries may perform additional transformations or enrichments to outgoing messages that are not strictly dictated by incoming header blocks. These capabilities can include, but are not limited to:
+
+- **Security services**: e.g., signing, encryption, token injection
+    
+- **Annotation services**: e.g., adding audit metadata or trace information
+    
+- **Content manipulation services**: e.g., data masking, format conversion, enrichment
+    
+
+Active intermediaries may modify, remove, or insert header blocks and body fields as needed to implement these services. Such modifications can affect how downstream nodes interpret or process the message. Therefore:
+
+1. **Feature Discovery**: Each active intermediary MUST include a machine-readable indicator (e.g., a header block or metadata field) describing the features it applied, so downstream nodes can detect and adapt to those changes.
+    
+2. **Idempotent Design**: Active intermediary operations SHOULD be idempotent or carry state markers to avoid repeated side effects when messages traverse multiple hops.
+    
+3. **Transparency Contracts**: AMP feature specifications for active services SHOULD define:
+    
+    - The exact locations and formats of injected metadata
+        
+    - Any header blocks or body sections that may be transformed or removed
+        
+    - Validation rules or schemas for downstream conformance checks
+        
+
+By standardizing these conventions in AMP feature specs, implementations ensure robust and interoperable message flows through active intermediaries.
+
+### 2.8 AMP Versioning Model
+
+Each AMP message includes a version identifier on the frame object. This version is expressed as a property within the frame, for example:
+
+```
 {
-  "type": "cachingHint",
-  "role": "urn:agentic:mesh:role:next",
-  "relay": true,
-  "content": { "cacheable": true }
+  "frame": {
+    "version": "1.0",
+    // ... other frame properties ...
+  }
 }
 ```
 
-When forwarding, intermediaries:
+A node determines support for an AMP message version on a per-message basis. “Support” means understanding the frame semantics for that version. The AMP Versioning Model applies solely to the frame; it does not govern versioning of header blocks, protocol bindings, MemoryGrams, or other message elements.
 
-- Remove processed mandatory header blocks
-- Remove non-relayable header blocks targeted at the intermediary but ignored during processing
-- Retain relayable header blocks targeted at the intermediary but ignored during processing
+Nodes MAY support multiple AMP versions but MUST process each message according to its declared version semantics.
 
-The `relay` attribute has no effect on AMP header blocks targeted at a role other than one assumed by an AMP intermediary.
+When receiving a message with an unsupported version, a node MUST generate an AMP fault with the code `VersionMismatch`. Any other structural malformation of the message MUST result in a fault with the code `Sender`.
 
-The `relay` attribute has no effect on the AMP processing model when the header block also carries a `mustUnderstand` attribute with a value of `true`.
+Feature specifications MAY define upgrade paths between versions (e.g., from 1.0 to 2.0) using an `Upgrade` header block and corresponding fault codes for version mismatch scenarios.
 
-The `relay` attribute has no effect on the processing of AMP messages by the ultimate AMP receiver.
+---
 
-**AMP Node Forwarding Behavior Table:**
+---
 
-| Role | Header Block | | |
-|------|--------------|---|---|
-| **Type** | **Assumed** | **Understood & Processed** | **Forwarded** |
-| next | Yes | Yes | No, unless reinserted |
-| next | Yes | No | No, unless relay=true |
-| user-defined | Yes | Yes | No, unless reinserted |
-| user-defined | Yes | No | No, unless relay=true |
-| user-defined | No | n/a | Yes |
-| ultimateReceiver | Yes | Yes | n/a |
-| ultimateReceiver | No | n/a | n/a |
-| none | No | n/a | Yes |
+### 3. AMP Extensibility Model
 
-### 4.8.2 AMP Forwarding Intermediaries
 
-The semantics of AMP Header fields, MemoryGram content, or the AMP message exchange pattern used, MAY require that the AMP message be forwarded to another AMP node on behalf of the initiator of the inbound AMP message. In this case, the processing AMP node acts in the role of an AMP forwarding intermediary.
+AMP provides a lightweight messaging framework whose core design emphasizes extensibility. The mechanisms described below allow AMP to incorporate advanced capabilities found in richer messaging systems through modular feature definitions.
 
-Forwarding AMP intermediaries MUST process the message according to the AMP processing model defined in 4.7 Processing AMP Messages. In addition, when generating an AMP message for the purpose of forwarding, they MUST:
+## 3.1 AMP Features
 
-- Decrement the ttl value in the Header
-- Update traceId to maintain correlation while indicating intermediary processing
-- Preserve messageId to maintain message identity
-- Remove all processed AMP header blocks (if using extended header processing)
-- Remove all non-relayable AMP header blocks that were targeted at the forwarding node but ignored during processing
-- Retain all relayable AMP header blocks that were targeted at the forwarding node but ignored during processing
-- Process MemoryGram according to section 4.8.3 Relaying MemoryGram
+An AMP feature is an extension that adds specific capabilities to the core AMP messaging framework. Features may cover concerns such as reliability, security, correlation, routing, and various message exchange patterns (MEPs) like request/response, one-way, or peer-to-peer workflows.
 
-Forwarding AMP intermediaries MUST also obey the specification for the AMP forwarding features being used. The specification for each such feature MUST describe the required semantics, including the rules describing how the forwarded message is constructed. Such rules MAY describe placement of inserted or reinserted AMP header blocks.
+AMP’s extensibility model supports two primary expression mechanisms:
 
-#### 4.8.2.1 Relayed JSON Structure
+- **AMP Processing Model** (see section 2): Defines how individual AMP nodes process messages and apply feature semantics via header blocks and frame properties.
+    
+- **AMP Protocol Binding Framework** (see section 4): Describes how AMP features map to underlying transport protocols and how nodes send/receive AMP messages over different bindings.
+    
 
-This section describes the behavior of AMP forwarding intermediaries with respect to preservation of the JSON structure properties of a relayed AMP message.
+Under the Processing Model, nodes that implement one or more AMP features express those features within AMP header blocks. Each feature’s combined syntax and semantics form an AMP module (see section 3.3 AMP Modules). Header blocks for these modules can target any node or chain of nodes along an AMP message path.
 
-Unless overridden by the processing of AMP features at an intermediary, the following rules apply:
+The Protocol Binding Framework operates between adjacent AMP nodes. It allows different transport protocols (e.g., HTTP, HTTP/2, gRPC, MQTT) to support or enhance AMP features without requiring the same binding for every hop. When a binding defines features externally to the AMP frame, its specification must include rules for intermediary behavior. However, binding-level rules MUST NOT override the core Processing Model.
 
-1. All JSON structure properties of a message MUST be preserved, except as specified in rules 2 through 14.
+Where possible, end-to-end features SHOULD be implemented as AMP header blocks so they benefit from the standard Processing Model rules rather than relying solely on binding-specific extensions.
 
-2. Header fields MAY be modified according to forwarding rules (ttl decrement, traceId updates).
+### 3.1.1 Requirements on Features
 
-3. Header block objects targeted at an intermediary MAY be removed from the headers array by that intermediary, as detailed in 4.8.2 AMP Forwarding Intermediaries.
+Any AMP feature specification MUST include:
 
-4. Header block objects for additional header blocks MAY be added to the headers array as detailed in 4.8.2 AMP Forwarding Intermediaries.
+- **Feature URI**: A unique URI to unambiguously name the feature for discovery and negotiation.
+    
+- **Node State**: Definitions of the state or configuration data each node requires to implement the feature.
+    
+- **Node Processing**: Detailed processing steps for each node, including error and failure handling pertaining to underlying transport behavior (see section 4.2 Binding Framework).
+    
+- **Inter-Node Data**: Specification of the data exchanged between nodes to support the feature.
+    
 
-5. MemoryGram content MAY be modified according to section 4.8.3 Relaying MemoryGram.
+Feature specifications for Message Exchange Patterns (see section 3.2) must also satisfy these requirements.
 
-6. Additional properties MAY be added to the Header object for intermediary processing metadata.
+### 3.2 AMP Message Exchange Patterns (MEPs)
 
-7. AMP role attribute values that are present in header block objects may be transformed as appropriate for forwarding.
+An AMP Message Exchange Pattern (MEP) is a feature that defines a template for message workflows between AMP nodes (e.g., request/response, publish/subscribe, or peer-to-peer interactions). MEPs are first-class AMP features and follow the same specification rules as other features.
 
-8. AMP `mustUnderstand` attribute values that are present in header block objects may be transformed as appropriate for forwarding.
+MEP specifications MUST include:
 
-9. AMP `relay` attribute values that are present in header block objects may be transformed as appropriate for forwarding.
+1. **MEP URI**: A unique URI identifying the MEP.
+    
+2. **Exchange Lifecycle**: A description of the sequence and timing of messages (e.g., request followed by response to the original sender).
+    
+3. **Causal Relationships**: Definitions of temporal or causal links between messages exchanged under the pattern.
+    
+4. **Termination Semantics**: Rules for normal and abnormal completion of the exchange.
+    
+5. **Additional Messages**: Requirements to generate supplementary messages (such as acknowledgments or error notifications).
+    
+6. **Fault Handling**: Rules for delivering or processing AMP faults within the MEP context.
+    
 
-10. The semantic meaning of the Body MUST be preserved unless explicitly modified by processed header blocks.
+Underlying transport binding specifications MAY declare support for one or more named MEPs, but MUST NOT override the core AMP Processing Model.
 
-11. Additional metadata properties MAY be added to header blocks for intermediary processing tracking.
 
-12. JSON property ordering MAY be changed during forwarding.
+3.3 AMP Modules
 
-13. JSON formatting and whitespace MAY be changed during forwarding.
+An AMP module defines the syntax and semantics of one or more AMP header blocks that implement zero or more AMP features. A module specification MUST adhere to the following rules:
 
-14. MemoryGram nodes and edges MAY be annotated with intermediary processing metadata.
+- **Module URI**: MUST include a unique URI that identifies the module for discovery, negotiation, and registration.
+    
+- **Feature Declaration**: MUST list the AMP features (see section 3.1) that the module provides.
+    
+- **Header Block Definitions**: MUST fully specify the structure and semantics of each header block used by the module, including any extensions or modifications to the core Processing Model (section 2). Modules are free to extend or alter processing behavior as needed.
+    
+- **Abstract Property Mapping (Optional)**: MAY use property conventions (e.g., abstract feature properties) from AMP binding frameworks. When used, the module spec MUST clearly map abstract properties to their concrete representations in header block JSON structures.
+    
+- **Body Interactions**: MUST describe how the module affects or interacts with the AMP body content, including any ordering or execution dependencies. If the module transforms or replaces body elements, the spec MUST define the reversal or processing steps required by downstream nodes.
+    
+- **Module Interactions**: MUST specify any interactions or dependencies with other AMP modules and features, detailing expected processing order and combined semantics.
+    
 
-**Note**: The rules above allow for signing of AMP Header fields, Body content, MemoryGram data, and combinations thereof. Care should be taken when implementing digital signatures to account for permitted JSON transformations.
+By following these rules, AMP modules provide a consistent mechanism to extend the protocol while preserving interoperability and clarity.
 
-### 4.8.3 Relaying MemoryGram
+---
 
-When forwarding AMP messages, intermediaries SHOULD handle MemoryGram data according to the following rules:
+### 4. AMP Protocol Binding Framework
+ 
 
-1. **Preservation**: By default, MemoryGram data SHOULD be preserved and forwarded unchanged.
+The AMP Protocol Binding Framework defines how AMP messages are carried over various transport protocols. A binding specification describes the mapping between AMP message structures and the underlying protocol, ensuring that feature semantics and message constructs are preserved across transports.
 
-2. **Annotation**: Intermediaries MAY add metadata to MemoryGram nodes or edges to indicate processing history:
+A binding specification MUST include:
+
+- **Feature Support Declaration**: List the AMP features (see section 3.1) that the binding implements or enhances.
+    
+- **Transport Mapping**: Define how AMP frames, headers, bodies, and MemoryGrams are represented and transmitted using the underlying protocol’s constructs (e.g., HTTP headers, gRPC metadata, MQTT topics).
+    
+- **Feature Contract Enforcement**: Describe how the binding honors feature contracts—such as reliability, security, or MEP guarantees—using the transport’s native capabilities.
+    
+- **Failure Handling**: Specify how to detect, report, and recover from transport-level errors (e.g., connection drops, timeouts, protocol violations) in ways that align with AMP fault semantics.
+    
+- **Implementation Requirements**: Outline the requirements for conformant implementations, including mandatory headers/metadata, encoding rules, and version negotiation steps.
+    
+
+Bindings do not define a separate processing model; they integrate with the core AMP Processing Model (section 2) implemented by AMP nodes. A binding is always part of a node’s capabilities, not a standalone component.
+
+By following this framework, new transports (e.g., WebSockets, QUIC, SMTP) can be added to AMP with consistent behavior and predictable integration across diverse network environments.
+
+### 4.1 Goals of the Binding Framework
+
+The binding framework aims to:
+
+1. **Standardize Common Concepts**: Establish requirements and concepts shared by all AMP binding specifications.
+    
+2. **Promote Reuse**: Enable homogeneous descriptions for features supported across multiple bindings, reducing duplication and easing maintenance.
+    
+3. **Ensure Consistency**: Provide a consistent approach to specifying optional features regardless of transport.
+    
+
+Multiple bindings offering the same optional feature (e.g., reliable delivery) can leverage different mechanisms—one may rely on the transport’s native reliability, while another implements reliability via application logic. The binding framework ensures that applications experience a uniform interface to optional features, no matter which binding is used.
+
+### 4.2 AMP Binding Framework State Model
+
+AMP message exchange across nodes—including initial senders, intermediaries, and ultimate receivers—is modeled as a distributed state machine. Each node maintains local state that may include:
+
+- **Outgoing Message Buffer**: AMP frame, headers, body, and MemoryGrams being assembled for transmission.
+    
+- **Incoming Message Buffer**: Partial or complete AMP messages received and awaiting processing.
+    
+- **Feature State**: Data or configuration (e.g., retry counts, correlation IDs, security contexts) required by AMP features.
+    
+
+The state at each node evolves through:
+
+1. **Local Processing**: Applying AMP Processing Model rules (section 2) and feature logic to update state based on local operations.
+    
+2. **Received Updates**: Incorporating state information carried in inbound AMP messages or binding metadata from adjacent nodes.
+    
+
+A binding specification augments the core AMP Processing Model by:
+
+- Defining how transport-specific metadata (e.g., connection parameters, transport headers) maps to or updates feature state.
+    
+- Specifying how the underlying protocol’s primitives (e.g., streaming frames, multipart payloads) transfer AMP frame data and state information.
+    
+
+Bindings MUST declare the MEPs they support and define any required state transitions for each pattern. When multiple features are enabled, binding and feature specs MUST document:
+
+- **Feature Interdependencies**: Any order or mutual exclusion requirements among features (e.g., correlation before security handshake).
+    
+- **State Conventions**: Naming and typing rules for state data (e.g., authentication tokens, transaction IDs) to promote cross-binding consistency.
+    
+
+Bindings also MUST specify the minimal responsibility for message serialization and reconstitution:
+
+- **frame Transfer**: How to encode, transmit, and restore the AMP frame over the wire, including optional compressions or chunking.
+    
+- **Serialization Formats**: If using JSON or alternative encodings (e.g., binary formats), list supported versions and character encodings.
+    
+- **Streaming Semantics**: Whether nodes may stream process messages as chunks arrive, provided final results match batch processing of complete frames.
+    
+
+By combining the core Processing Model with binding-specific state transitions, AMP ensures that message delivery, feature enforcement, and error handling remain consistent across diverse transports.
+
+---
+
+### 5. AMP Message Construct
+
+An AMP message is represented as a JSON object whose top‑level key is the `frame`. The `frame` contains exactly three child properties: `Header`, `Body`, and optionally `MemoryGrams`. No other top‑level keys are permitted.
+
+```
+{
+  "frame": {
+    "Header": { /* message metadata and header blocks */ },
+    "Body":   { /* task payload or application data */ },
+    "MemoryGrams": [ /* zero or more immutable context snapshots */ ]
+  }
+}
+```
+
+Rules:
+
+1. **Single frame Root**: The message object MUST contain exactly one `frame` property. Nested or multiple frames are not allowed.
+    
+2. **Header/Body/MemoryGrams**: Inside `frame`, only `Header`, `Body`, and `MemoryGrams` keys are recognized. `MemoryGrams` may be omitted if not used.
+    
+3. **No Extraneous Fields**: Any additional properties at the `frame` level or above MUST be rejected or ignored, depending on feature rules.
+    
+4. **No Processing Instructions or Doctypes**: AMP does not support XML concepts such as processing instructions or document type declarations. All message metadata must be encoded in JSON properties or header blocks.
+    
+5. **Whitespace and Comments**: JSON does not preserve insignificant whitespace or comments. Any formatting hints are ignored by default.
+    
+6. **Serialization**: AMP messages are serialized as UTF‑8 JSON text. Bindings MAY support binary or compressed representations but MUST restore the exact JSON structure upon reception.
+    
+7. **Validation**: Conformant implementations MUST validate incoming messages against the AMP message schema, ensuring the presence and correct types of `Header` and `Body`, and that `MemoryGrams`, if present, is an array of objects.
+    
+8. **Extensibility**: Feature‑specific header blocks and frame extensions can be defined, but must appear under `Header` or in `MemoryGrams`, never at the top level.
+
+By adhering to these rules, AMP ensures a clear, interoperable JSON message model without legacy XML constructs.
+
+### 5.1 AMP frame
+The AMP frame element information item has:
+
+- A _local name_ of **frame**.
+    
+- Zero or more namespace-qualified attribute information items in its _attributes_ property.
+    
+- One or more element information items in its _children_ property, in order as follows:
+    
+    1. An optional **Header** element information item (see 5.2 AMP Header).
+        
+    2. A mandatory **Body** element information item (see 5.3 AMP Body).
+        
+    3. Zero or more **MemoryGram** element information items (see 5.4 AMP MemoryGrams).
+        
+
+---
+
+### 5.1.1 AMP version Attribute**  
+The **version** attribute information item indicates which revision of the AMP spec this frame conforms to.
+
+- A _local name_ of **version**.
+    
+- The attribute is of type _xs:string_. Its value is a semantic version identifier (e.g. `"1.0.0"`) matching the AMP release.
+    
+
+This attribute **MAY** appear on the frame element. If absent, peers should assume the latest stable version.
+
+---
+
+**5.2 AMP Header**  
+The AMP Header is a JSON object that carries modular metadata blocks for each message. It provides a decentralized and extensible mechanism for agents to include routing, control, or custom data without central coordination.
+
+**Structure:**
+
+```
+{
+  "Header": {
+    "<blockName>": { /* block-specific properties */ },
+    ...
+  }
+}
+```
+
+- **Header**: top‑level object property containing header blocks.
+    
+- **blockName**: unique key identifying the block (e.g., `routing`, `ttl`, `encryption`).
+    
+- **block-specific properties**: object fields defined by each module’s schema.
+
+### 5.2.1 AMP Header Block**  
+An AMP header block is a JSON object entry under the top‑level `Header` property. It carries metadata or control information in a modular, decentralized fashion.
+
+**Definition:**
+
+```
+{
+  "Header": {
+    "<blockName>": {
+      /* block-specific fields */
+    }
+  }
+}
+```
+
+**Rules for AMP header blocks:**
+
+1. **Key Naming:**
+    
+    - The block key (`blockName`) MUST use camelCase and be unique within `Header`.
+        
+2. **Field Types:**
+    
+    - Blocks MAY include any combination of JSON primitives (string, number, boolean), objects, or arrays, as defined by their module schema.
+        
+3. **Standardized Properties:** Optional but recommended fields that many blocks share:
+    
+    - `encodingStyle` (string): URI indicating serialization rules for payloads.
+        
+    - `role` (string): processing role, e.g. `initialSender`, `intermediary`, `ultimateReceiver`.
+        
+    - `mustUnderstand` (boolean): if `true`, the receiver MUST process or explicitly reject unknown blocks.
+        
+    - `relay` (boolean): if `true`, the block MUST be forwarded even if unrecognized.
+        
+4. **Forwarding Semantics:**
+    
+    - Unrecognized blocks or properties MUST be ignored during processing but preserved in any forwarded message.
+        
+5. **Validation:**
+    
+    - Core properties (`mustUnderstand`, `relay`, `role`, etc.) MUST be validated by the processing agent.
+        
+    - Custom modules are responsible for validating their own fields.
+        
+
+**Example: Transaction Block**
+
+```
+{
+  "Header": {
+    "transaction": {
+      "amount": 5,
+      "mustUnderstand": true,
+      "relay": false
+    }
+  }
+}
+```
+
+This AMP-native JSON replaces XML-based header blocks with a simple object model, preserving modularity, extensibility, and decentralized processing.
+
+**5.2.2 AMP Role Property**  
+The **role** property in an AMP header block specifies the intended processing role for that block, guiding agents on how to handle it. It replaces SOAP’s namespace-qualified `role` attribute with a simple JSON key.
+
+**Definition:**
+
+```
+{
+  "Header": {
+    "<blockName>": {
+      "role": "<roleName>",
+      /* other block-specific fields */
+    }
+  }
+}
+```
+
+**Rules for the** `**role**` **property:**
+
+1. **Key Name:**
+    
+    - Use the exact key `role` within a header block object.
+        
+2. **Value Type:**
+    
+    - A string representing the processing role.
+        
+    - Common role names include:
+        
+        - `initialSender` (default if omitted)
+            
+        - `intermediary`
+            
+        - `ultimateReceiver`
+            
+3. **Default Behavior:**
+    
+    - If `role` is omitted, processors MUST assume `ultimateReceiver`.
+        
+4. **Processing Semantics:**
+    
+    - Agents SHOULD include `role` only in header blocks.
+        
+    - When relaying a message, intermediaries MAY omit `role` if its value is `ultimateReceiver`.
+        
+    - Receivers MUST ignore `role` properties on nested block fields not directly under `Header`.
+        
+5. **Validation:**
+    
+    - Processors MUST validate that the `role` value is one of the recognized options; unrecognized values are treated as `ultimateReceiver`.
+        
+
+**Example: AMP Header with Role**
+
+```
+{
+  "Header": {
+    "audit": {
+      "role": "intermediary",
+      "timestamp": "2025-06-26T15:30:00Z"
+    }
+  }
+}
+```
+
+This JSON-native `role` property maintains AMP’s protocol-neutral, modular design and clearly indicates which agents should process each header block.
+
+**5.2.3 AMP mustUnderstand Property**  
+The **mustUnderstand** property in an AMP header block indicates whether processing of that block is mandatory. It replaces SOAP’s `mustUnderstand` attribute with a JSON boolean field.
+
+**Definition:**
 
 ```json
-"MemoryGram": {
-  "nodes": [
-    {
-      "id": "plan-123",
-      "type": "plan",
-      "metadata": {
-        "importance": 0.95,
-        "decay": 0.1,
-        "processedBy": ["intermediary-node-1"],
-        "processingTimestamp": "2025-06-26T14:30:00Z"
+{
+  "Header": {
+    "<blockName>": {
+      "mustUnderstand": true,
+      /* other block-specific fields */
+    }
+  }
+}
+```
+
+**Rules for the `mustUnderstand` property:**
+
+1. **Key Name:**
+    
+    - Use `mustUnderstand` within a header block object.
+        
+2. **Value Type:**
+    
+    - Boolean (`true` or `false`).
+        
+3. **Default Behavior:**
+    
+    - If omitted, it is treated as `false`.
+        
+4. **Validation:**
+    
+    - Agents MUST accept any valid JSON boolean.
+        
+5. **Processing Semantics:**
+    
+    - If `mustUnderstand` is `true` and the receiver does not recognize the block, the receiver MUST reject or error.
+        
+    - If `false`, unrecognized blocks may be ignored but should still be forwarded.
+        
+6. **Forwarding Semantics:**
+    
+    - Intermediaries MAY omit `mustUnderstand` when forwarding if its value is `false`.
+        
+
+**Example: AMP Header with mustUnderstand**
+
+```json
+{
+  "Header": {
+    "audit": {
+      "mustUnderstand": true,
+      "timestamp": "2025-06-26T15:30:00Z"
+    }
+  }
+}
+```
+
+This JSON-native `mustUnderstand` field ensures mandatory header blocks are explicitly handled, preserving AMP’s robust, modular processing model.
+
+
+**5.2.4 AMP relay Property**  
+The **relay** property in an AMP header block specifies whether the block must be forwarded by intermediaries even if unrecognized. It replaces SOAP’s `relay` attribute with a JSON boolean field.
+
+**Definition:**
+
+```
+{
+  "Header": {
+    "<blockName>": {
+      "relay": true,
+      /* other block-specific fields */
+    }
+  }
+}
+```
+
+**Rules for the** `**relay**` **property:**
+
+1. **Key Name:**
+    
+    - Use `relay` within a header block object.
+        
+2. **Value Type:**
+    
+    - Boolean (`true` or `false`).
+        
+3. **Default Behavior:**
+    
+    - If omitted, it is treated as `false`.
+        
+4. **Validation:**
+    
+    - Agents MUST accept any valid JSON boolean.
+        
+5. **Processing Semantics:**
+    
+    - If `relay` is `true`, intermediaries MUST include the block when forwarding, even if they do not understand it.
+        
+    - If `relay` is `false`, intermediaries MAY omit the block if unrecognized, but SHOULD preserve it when possible.
+        
+6. **Usage Constraints:**
+    
+    - Agents SHOULD include `relay` only in header block objects.
+        
+    - Receivers MUST ignore `relay` properties appearing outside direct children of the `Header`.
+        
+
+**Example: AMP Header with relay**
+
+```
+{
+  "Header": {
+    "audit": {
+      "relay": true,
+      "timestamp": "2025-06-26T15:30:00Z"
+    }
+  }
+}
+```
+
+This JSON-native `relay` field ensures necessary header blocks are consistently forwarded, upholding AMP’s decentralized, modular routing model.
+
+**5.3 AMP Body**  
+The AMP Body is a JSON object that carries the primary task payload intended for the ultimate agent receiver. It replaces the SOAP Body’s XML infoset with a clear, JSON-native structure.
+
+**Structure:**
+
+```
+{
+  "Body": {
+    /* task-specific payload object */
+  }
+}
+```
+
+**Rules for the AMP Body:**
+
+1. **Key Name:**
+    
+    - Use `Body` as the top-level property for message payload.
+        
+2. **Payload Type:**
+    
+    - The value of `Body` is a single JSON object whose schema is defined by the application or module (e.g., `task`, `query`, `response`).
+        
+3. **Attributes & Metadata:**
+    
+    - Any control or metadata fields (e.g., `contentType`, `schemaVersion`) should be included at the same level as the payload or nested under a dedicated metadata key.
+        
+4. **Whitespace & Formatting:**
+    
+    - JSON whitespace is insignificant; processors must ignore formatting differences.
+        
+5. **Validation:**
+    
+    - Receivers MUST validate the payload against the agreed-upon schema before processing.
+        
+6. **Error Handling:**
+    
+    - If the payload fails validation, the receiver MUST return an AMP error message (see 5.5 AMP Fault section).
+        
+
+**Example: AMP Body**
+
+```
+{
+  "Body": {
+    "task": {
+      "action": "processOrder",
+      "orderId": "12345",
+      "items": [
+        { "sku": "ABC", "quantity": 2 },
+        { "sku": "XYZ", "quantity": 1 }
+      ]
+    },
+    "schemaVersion": "1.2.0"
+  }
+}
+```
+
+This JSON Body section cleanly encapsulates the core message payload, enabling modular schema definitions and straightforward validation in AMP’s decentralized agent ecosystem.
+
+### 5.3.1 AMP Body Child Elements  
+AMP Body child elements are represented as properties within the `Body` object. Each key corresponds to a distinct payload segment or module.
+
+**Structure:**
+
+```
+{
+  "Body": {
+    "childKey": {},
+    "anotherChild": []
+  }
+}
+```
+
+**Rules for AMP Body child elements:**
+
+1. **Key Naming:**
+    
+    - Use camelCase for each `childKey`.
+        
+    - Keys MUST be unique within the `Body` object.
+        
+2. **Value Types:**
+    
+    - Values MAY be any valid JSON type (object, array, string, number, boolean).
+        
+    - Custom modules define their own schemas for these payloads.
+        
+3. **Standardized Fields:**
+    
+    - `encodingStyle` (string, optional): URI indicating serialization rules for nested content.
+        
+    - `schemaVersion` (string, optional): version identifier for the child payload schema.
+        
+4. **Whitespace & Formatting:**
+    
+    - JSON whitespace is insignificant and ignored by processors.
+        
+5. **Reserved Child—**`**fault**`**:**
+    
+    - The `fault` key is reserved for error reporting (see 5.5 AMP Fault).
+        
+    - If present, no other child is processed; `fault` payload must follow the AMP Fault schema.
+        
+6. **Validation & Processing:**
+    
+    - Receivers MUST validate each child payload against its module schema.
+        
+    - Unknown child keys MAY be ignored but should be preserved when forwarding.
+        
+
+**Example: AMP Body with Multiple Children**
+
+```
+{
+  "Body": {
+    "task": {
+      "action": "updateRecord",
+      "recordId": "67890"
+    },
+    "metadata": {
+      "schemaVersion": "1.0.0",
+      "encodingStyle": "application/json"
+    }
+  }
+}
+```
+
+{
+  "Body": {
+    "fault": {
+      "code": {
+        "value": "Client.InvalidRequest",
+        "subcode": "MissingField"
+      },
+      "reason": {
+        "text": "The 'orderId' field is required.",
+        "lang": "en-US"
+      },
+      "escalateToHuman": true,
+      "returnTo": "agent://node-17",
+      "detail": {
+        "missingFields": ["orderId"]
       }
     }
+  }
+}
+
+**5.4.1 AMP Code Object**  
+The AMP Code object carries the primary error code and optional detailed subcode within an AMP Fault. It replaces the SOAP Code and Subcode elements with a flat JSON structure.
+
+**Structure:**
+
+```json
+{
+  "fault": {
+    "code": {
+      "value": "<errorCode>",    // required: machine-readable fault code
+      "subcode": "<subCode>"     // optional: detailed application-specific code
+    }
+  }
+}
+```
+
+**Rules for AMP Code:**
+
+1. **Key Naming:**
+    
+    - Use the exact key `code` under the `fault` object.
+        
+    - Inside `code`, use `value` (required) and `subcode` (optional).
+        
+2. **Value Types:**
+    
+    - `value`: string following the agreed-upon error vocabulary.
+        
+    - `subcode`: string representing a more specific category or qualifier.
+        
+3. **Defaults & Validation:**
+    
+    - `value` is mandatory; processors MUST reject faults missing `value`.
+        
+    - `subcode` if present, MUST be validated against application-defined subcode lists.
+        
+4. **Forwarding Semantics:**
+    
+    - Code object is part of a terminating Fault; intermediaries do not modify it.
+        
+
+**Example: AMP Code Object**
+
+```json
+{
+  "fault": {
+    "code": {
+      "value": "Client.InvalidRequest",
+      "subcode": "MissingField"
+    }
+  }
+}
+```
+
+
+**5.4.2 AMP Reason Object**  
+The AMP Reason object provides a human-readable explanation of a fault, supporting multiple language variants. It replaces SOAP’s Reason and Text elements with a JSON-native list.
+
+**Structure:**
+
+```
+{
+  "fault": {
+    "reason": [
+      {
+        "text": "<human-readable description>",  // required: explanation
+        "lang": "<IETF-language-tag>"          // required: language code, e.g. "en-US"
+      }
+      /* Additional entries for other languages */
+    ]
+  }
+}
+```
+
+**Rules for AMP Reason:**
+
+1. **Key Naming:**
+    
+    - Use `reason` under the `fault` object.
+        
+    - `reason` is an array of objects with `text` and `lang` fields.
+        
+2. **Array Entries:**
+    
+    - Each entry MUST include `text` (string) and `lang` (valid IETF language tag).
+        
+    - Entries SHOULD have unique `lang` values.
+        
+3. **Value Types:**
+    
+    - `text`: string carrying the explanation; not for algorithmic processing.
+        
+    - `lang`: string following IETF BCP 47 (e.g., "en", "fr-CA").
+        
+4. **Defaults & Validation:**
+    
+    - At least one reason entry is required.
+        
+    - Processors MUST validate `lang` codes; unknown codes may be accepted but logged.
+        
+5. **Forwarding Semantics:**
+    
+    - Reason is part of a terminating Fault; intermediaries do not modify it.
+        
+
+**Example: AMP Reason Object**
+
+```
+{
+  "fault": {
+    "reason": [
+      { "text": "The 'orderId' field is required.", "lang": "en-US" },
+      { "text": "Le champ 'orderId' est requis.", "lang": "fr-FR" }
+    ]
+  }
+}
+```
+
+
+**5.4.3 AMP Node Property**  
+The **node** property in an AMP Fault identifies which agent node generated the fault. It replaces SOAP’s Node element with a JSON URI field.
+
+**Structure:**
+
+```
+{
+  "fault": {
+    "node": "<agentUri>",    // required for intermediaries, optional for ultimateReceiver
+    /* other fault fields */
+  }
+}
+```
+
+**Rules for AMP Node:**
+
+1. **Key Naming:**
+    
+    - Use `node` under the `fault` object.
+        
+2. **Value Type:**
+    
+    - String representing the URI of the agent node (e.g., `agent://node-17`).
+        
+3. **Presence:**
+    
+    - Must be present if the fault is generated by an intermediary node.
+        
+    - May be included by the ultimateReceiver to explicitly indicate fault origin.
+        
+4. **Validation:**
+    
+    - Ensure the URI follows the agreed agent URI scheme.
+        
+5. **Semantics:**
+    
+    - Indicates source of error for routing, logging, or debugging.
+        
+
+---
+
+**5.4.4 AMP Role Property**  
+The **role** property in an AMP Fault specifies the processing role of the node when the fault occurred. It replaces SOAP’s Role element with a JSON string field.
+
+**Structure:**
+
+```
+{
+  "fault": {
+    "role": "<roleName>",    // optional: e.g. "intermediary", "ultimateReceiver"
+    /* other fault fields */
+  }
+}
+```
+
+**Rules for AMP Role:**
+
+1. **Key Naming:**
+    
+    - Use `role` under the `fault` object.
+        
+2. **Value Type:**
+    
+    - String; must match one of the defined processing roles (e.g., `initialSender`, `intermediary`, `ultimateReceiver`).
+        
+3. **Optionality:**
+    
+    - May be omitted if not critical to fault handling.
+        
+4. **Validation:**
+    
+    - Processors MUST validate against the set of known roles; unrecognized values treated as `ultimateReceiver`.
+        
+5. **Semantics:**
+    
+    - Helps identify the context under which the error was produced.
+        
+
+**Example: AMP Fault with Node and Role**
+
+```
+{
+  "Body": {
+    "fault": {
+      "code": { "value": "Server.ProcessingError" },
+      "reason": [ { "text": "Timeout while processing.", "lang": "en-US" } ],
+      "node": "agent://node-17",
+      "role": "intermediary"
+    }
+  }
+}
+```
+
+**5.4.5 AMP Detail Object**  
+The AMP Detail object carries application-specific error information within a fault. It replaces SOAP’s Detail element and its detail entries with a flexible JSON structure.
+
+**Structure:**
+
+```
+{
+  "fault": {
+    "detail": {
+      "<entryKey>": {
+        /* entry-specific fields */
+      },
+      /* additional entries */
+    }
+  }
+}
+```
+
+**Rules for AMP Detail:**
+
+1. **Key Naming:**
+    
+    - The `detail` key under `fault` holds a JSON object of entries.
+        
+    - Each entry uses a unique, camelCase `entryKey`.
+        
+2. **Entry Structure:**
+    
+    - Entry values MAY be any valid JSON type (object, array, primitive) as defined by the application schema.
+        
+    - Modules may include an optional `encodingStyle` field (string URI) to indicate serialization rules.
+        
+3. **Optionality:**
+    
+    - `detail` is optional; omit it if no application-specific data is needed.
+        
+4. **Forwarding Semantics:**
+    
+    - Detail entries are part of a terminating fault and are not forwarded by intermediaries.
+        
+5. **Validation:**
+    
+    - Receivers MUST validate `detail` entries against the application’s error-detail schema.
+        
+
+**Example: AMP Detail Object**
+
+```
+{
+  "fault": {
+    "detail": {
+      "missingCredentials": {
+        "username": null,
+        "reason": "User not found"
+      },
+      "timeoutInfo": {
+        "durationMs": 30000,
+        "retryable": false
+      }
+    }
+  }
+}
+```
+
+
+**5.4.6 AMP Fault Codes**  
+AMP Fault Codes classify errors within a fault’s `code.value` field and optional `subcode`. Applications MAY define additional subcodes beyond the base set.
+
+**Base Fault Code Enum:**
+
+```
+{
+  "faultCodes": [
+    "VersionMismatch",    // invalid frame structure or namespace
+    "MustUnderstand",    // mandatory block not understood
+    "DataEncodingUnknown", // unsupported encoding style
+    "Sender",            // client-side error—message malformed or unauthorized
+    "Receiver"           // server-side processing error
   ]
 }
 ```
 
-3. **Filtering**: Intermediaries MAY remove MemoryGram nodes or edges that violate security policies, but SHOULD preserve graph connectivity where possible.
+**Subcodes:**
 
-4. **Augmentation**: Intermediaries MAY add new nodes or edges to the MemoryGram to provide additional context, but MUST clearly identify such additions.
+- Any string values under `code.subcode` to refine classification (e.g., `MessageTimeout`, `AuthenticationFailed`).
+    
+- Subcodes are interpreted in the context of `code.value`.
+    
 
-5. **Privacy**: Intermediaries MUST respect privacy policies when processing MemoryGram data and SHOULD NOT expose sensitive information to unauthorized recipients.
+**Processing Rules:**
 
-### 4.8.4 AMP Active Intermediaries
+1. **Interpretation:**
+    
+    - A node MUST understand the base `code.value` to interpret `detail`.
+        
+2. **Subcode Chaining:**
+    
+    - Multiple subcode levels can be represented by concatenating qualifiers in `subcode` (e.g., `MessageTimeout.NetworkFailure`).
+        
+3. **Validation:**
+    
+    - Receivers MUST validate `code.value` against the base enum and log or reject unknown codes.
+        
+4. **Escalation & Recovery:**
+    
+    - `VersionMismatch` faults SHOULD include an AMP `Upgrade` header block (see Part 2) listing supported protocol versions.
+        
+    - `Sender` faults indicate non-retryable errors—clients must correct and resend.
+        
+    - `Receiver` faults indicate retryable errors—clients MAY resend later.
+        
 
-In addition to the processing performed by forwarding AMP intermediaries, active AMP intermediaries undertake additional processing that can modify the outbound AMP message in ways not described in the inbound AMP message. That is, they can undertake processing not described by AMP header blocks in the incoming AMP message. The potential set of services provided by an active AMP intermediary includes, but is not limited to: security services, annotation services, and content manipulation services.
+**Example: AMP Fault Codes Usage**
 
-The results of such active processing could impact the interpretation of AMP messages by downstream AMP nodes. For example, as part of generating an outbound AMP message, an active AMP intermediary might have removed and encrypted some or all of the AMP header blocks found in the inbound AMP message.
-
-It is strongly recommended that AMP features provided by active AMP intermediaries be described in a manner that allows such modifications to be detected by affected AMP nodes in the message path.
-
-Extensions SHOULD describe such processing to allow downstream nodes to detect changes.
-
-## 4.9 Versioning
-
-The AMP message version is identified in the envelope structure. For AMP 1.0, the presence of the three-component structure (Header, Body, MemoryGram) indicates version 1.0:
-
-```json
+```
 {
-  "Envelope": {
-    "Header": {
-      "messageId": "msg-12345",
-      "version": "1.0"
-    },
-    "Body": { ... },
-    "MemoryGram": { ... }
+  "Body": {
+    "fault": {
+      "code": {
+        "value": "VersionMismatch",
+        "subcode": "MessageTimeout"
+      },
+      "reason": [ { "text": "Node supports AMP v1.0 only.", "lang": "en-US" } ],
+      "metadata": {
+        "supportedVersions": ["1.0", "1.1"]
+      }
+    }
   }
 }
 ```
 
-An AMP node determines whether it supports the version of an AMP message on a per-message basis. In this context "support" means understanding the semantics of that version of the AMP envelope. The versioning model is directed only at the AMP envelope structure. It does not address versioning of AMP header blocks, encodings, protocol bindings, or anything else.
+**5.4.8 AMP MustUnderstand Fault**  
+When an AMP node encounters one or more mandatory header blocks it cannot process (`mustUnderstand:true`), it generates a fault with `code.value = "MustUnderstand"` and includes a `notUnderstood` list under the `Header`.
 
-An AMP node MAY support multiple envelope versions. However, when processing a message, an AMP node MUST use the semantics defined by the version of that message.
+**Structure:**
 
-Nodes determine version support per message and MUST use semantics defined for the message version.
+```
+{
+  "Header": {
+    "notUnderstood": [
+      "extension1",    // keys of header blocks not understood
+      "extension2"
+    ]
+  },
+  "Body": {
+    "fault": {
+      "code": { "value": "MustUnderstand" },
+      "reason": [ { "text": "Mandatory header blocks not understood.", "lang": "en-US" } ]
+    }
+  }
+}
+```
 
-If an AMP node receives a message whose version is not supported, it MUST generate a fault with code `amp:VersionMismatch`. Any other malformation of the message construct MUST result in the generation of a fault with code `amp:Sender`.
+**Rules for MustUnderstand Faults:**
 
-If a message's version is unsupported, the node MUST generate a version mismatch fault.
+1. **Reserved Header Field:**
+    
+    - `Header.notUnderstood` is an array of camelCase keys identifying each mandatory header block the node failed to process.
+        
+2. **Fault Code:**
+    
+    - The `Body.fault.code.value` field MUST be set to `MustUnderstand`.
+        
+3. **Reason:**
+    
+    - Provide at least one human-readable reason entry.
+        
+4. **Optional Detail:**
+    
+    - Additional context may be added under `fault.detail`.
+        
+5. **Processing Semantics:**
+    
+    - Receivers MUST cease normal processing when `MustUnderstand` faults occur.
+        
+    - Intermediaries SHOULD NOT forward the original message—this is a terminating fault.
+        
+6. **Example Comprehension:**
+    
+    - Clients can inspect `Header.notUnderstood` to know which header modules need support or reconfiguration.
 
-## 4.10 AMP Fault Codes
 
-AMP defines the following standard fault codes:
+### 6.0 AMP MemoryGram
 
-| Fault Code | Description |
-|------------|-------------|
-| `amp:MustUnderstand` | A mandatory header block was not understood by the processing node |
-| `amp:VersionMismatch` | The message version is not supported by the processing node |
-| `amp:Sender` | The message is malformed or contains invalid content from the sender |
-| `amp:Receiver` | The processing node encountered an error while processing a valid message |
-| `amp:TTLExpired` | The message time-to-live expired before processing could complete |
-| `amp:InvalidMemoryGram` | The MemoryGram structure is malformed or contains invalid data |
+The AMP MemoryGram is a JSON object capturing an immutable snapshot of agent context—modeled as graph data with nodes and edges—for decentralized sharing. In v1.0, it represents a single snapshot; see Part 2 for multi-gram arrays and pruning policies.
 
-Additional fault codes MAY be defined by extensions or applications as needed.
-## 3 MemoryGram Model
+**Structure:**
 
-### 3.1 Nodes
+```
+{
+  "MemoryGram": {
+    "id": "<uuid>",           // unique identifier for this snapshot
+    "timestamp": "<ISO8601>", // creation time in UTC
+    "nodes": [                  // list of context nodes
+      {
+        "id": "<nodeId>",        // unique node identifier
+        "type": "<nodeType>",    // e.g. "entity", "state"
+        "attributes": {            // arbitrary key/value pairs
+          /* node-specific fields */
+        }
+      }
+    ],
+    "edges": [                  // relationships between nodes
+      {
+        "source": "<nodeId>",    // id of source node
+        "target": "<nodeId>",    // id of target node
+        "weight": <number>         // numeric strength of relation
+      }
+    ],
+    "metadata": {               // optional snapshot metadata
+      "sourceAgent": "<agentUri>",
+      "schemaVersion": "1.0.0"
+    }
+  }
+}
+```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| id | string | Unique node ID. |
-| type | string | Category (e.g. plan, issue). |
-| metadata | object | Arbitrary key‑values (importance, decay, etc.). |
+**Rules for AMP MemoryGrams:**
 
-### 3.2 Edges
+1. **Immutability:** Once created, a MemoryGram MUST NOT be modified.
+    
+2. **Identification:**
+    
+    - `id` MUST be a UUID v4.
+        
+    - `timestamp` MUST follow ISO 8601 format in UTC.
+        
+3. **Graph Payload:**
+    
+    - `nodes`: array of node objects representing context entities or states.
+        
+    - `edges`: array of edge objects describing weighted relationships between nodes.
+        
+4. **Metadata:**
+    
+    - `metadata` is optional but recommended for tracing, versioning, and compatibility.
+        
+5. **Validation:**
+    
+    - Receivers MUST validate graph structure (unique node IDs, valid edge references) before merging or presenting.
+        
+6. **Forwarding & Pruning:**
+    
+    - MemoryGrams are included in the frame’s top-level array (Part 2).
+        
+    - Pruning policies (e.g., maximum history length, decay thresholds) are described in Appendix A.
+        
 
-| Field | Type | Description |
-|-------|------|-------------|
-| source | string | Source node ID. |
-| target | string | Target node ID. |
-| weight | number | Strength (0‒1). |
-| context | string | Optional label. |
+**Example: AMP MemoryGram**
 
-### 3.3 Lifecycle
+```
+{
+  "MemoryGram": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "timestamp": "2025-06-26T23:00:00Z",
+    "nodes": [
+      { "id": "n1", "type": "entity", "attributes": { "name": "Alice" } },
+      { "id": "n2", "type": "state",  "attributes": { "status": "active" } }
+    ],
+    "edges": [
+      { "source": "n1", "target": "n2", "weight": 0.75 }
+    ],
+    "metadata": {
+      "sourceAgent": "agent://node-42",
+      "schemaVersion": "1.0.0"
+    }
+  }
+}
+```
 
-1. **Generate** – built locally via confidence queries.
-2. **Transmit** – included in the envelope.
-3. **Interpret** – recipient treats as hints not mandates.
-4. **Decay/Reinforce** – recalculated independently per agent.
+---
 
-## 4 Security Considerations
+**7.0 Security Considerations**  
+AMP provides an extensibility model for adding security features via modular header blocks and payload extensions. Designers and implementors should consider the following when defining and deploying AMP security mechanisms:
 
-AMP supports three encryption levels:
+1. **Trust Evaluation**
+    
+    - Agents MUST verify the identity and privileges of message senders before processing sensitive header blocks or Body contents.
+        
+    - Implement access control modules (e.g., `authentication`, `authorization`) as AMP header blocks with clear validation rules.
+        
+2. **Header Block Safety**
+    
+    - Only well-specified header blocks with understood side effects (state changes, logging, message generation) should be processed.
+        
+    - Unrecognized security header blocks MUST be ignored but preserved if `relay:true`; unknown blocks with `mustUnderstand:true` trigger a MustUnderstand fault.
+        
+3. **Payload Protection**
+    
+    - Use encryption and integrity modules (e.g., `encryption`, `signature`) defined as header blocks to protect confidentiality and detect tampering.
+        
+    - Bind cryptographic metadata (algorithm, key identifiers) to header blocks, and validate prior to Body processing.
+        
+4. **Modular Awareness**
+    
+    - Ensure each AMP processing module is aware of the overall security context.
+        
+    - For example, Body payload modules should not execute without confirming authentication and integrity modules succeeded.
+        
+5. **Data Sanitization**
+    
+    - Sanitize all data fields—including nested JSON values, URI parameters, and binary attachments—against injection and overflow attacks.
+        
+    - Define a `validation` header block or schema versioning to enforce content rules.
+        
+6. **Side‑Effect Minimization**
+    
+    - Limit the scope of state‑changing header blocks to explicit, permissioned actions.
+        
+    - Log and audit each security‑relevant action via a dedicated `audit` block, including timestamps and agent URIs.
+        
+7. **Error Handling**
+    
+    - On security validation failures, generate an AMP Fault with `code.value = "Receiver.SecurityViolation"` or a suitable custom code.
+        
+    - Include `detail` entries explaining the violation, and optionally `escalateToHuman:true` for manual review.
+        
+8. **Versioning & Upgrades**
+    
+    - Use an `Upgrade` header block for protocol version mismatches, including supported security module versions.
+        
+    - Maintain backward compatibility by negotiating security feature support at the start of message exchanges.
+        
 
-1. **Field‑level** – encrypt individual fields:
-   ```json
-   "draftPlan🔐": { "encryptedFor": "legal" }
-   ```
+By following these considerations and leveraging AMP’s modular header model, implementors can build robust, decentralized security architectures that align with their specific deployment requirements.
 
-2. **Section‑level** – encrypt MemoryGram wholesale.
+---
 
-3. **BYOE** – integrate custom key management or envelopes (JWE, KMS URIs, etc.).
+## 7 Security Considerations
 
-## 5 Extensibility and Routing
+Security mechanisms (confidentiality, integrity, non-repudiation) are provided by modules (e.g., field/section-level encryption). Intermediate nodes are attack surfaces; modules **SHOULD** document trust models and privacy boundaries.
 
-- Define new `routingIntent` keywords via module docs.
-- Extend MemoryGram metadata without breaking receivers (must‑ignore rule).
-- Bind AMP over HTTP, AMQP, gRPC & other transports.
+---
 
-## Normative References
+**7.2 AMP Intermediaries**  
+Intermediary agents in AMP may inspect, modify, or forward messages as they pass through the network. To mitigate man‑in‑the‑middle and privacy risks, implement the following:
 
-- [SOAP Version 1.2 Part 1: Messaging Framework](https://www.w3.org/TR/soap12-part1/) – W3C Rec.
-- [RFC 2119](https://tools.ietf.org/html/rfc2119) – Key Words for Requirement Levels.
-- [RFC 8259](https://tools.ietf.org/html/rfc8259) – The JSON Data Interchange Format.
+1. **End‑to‑End Protection**
+    
+    - Use header blocks like `encryption` and `signature` to provide confidentiality and integrity beyond transport hops.
+        
+    - Ensure only the ultimateReceiver can decrypt sensitive payloads.
+        
+2. **Agent Authentication**
+    
+    - Require each intermediary to present verifiable credentials via an `authentication` block.
+        
+    - Validate intermediary identities before forwarding.
+        
+3. **Selective Processing**
+    
+    - Only allow trusted intermediaries to handle header blocks with side effects (e.g., `routing`, `audit`).
+        
+    - Intermediaries without a validated `authorization` block MUST ignore such blocks or trigger a MustUnderstand fault.
+        
+4. **Audit & Logging**
+    
+    - Log each processing step in an `audit` block, including agentUri, timestamp, and actions taken.
+        
+    - Protect logs from tampering using a `signature` block.
+        
+5. **Transport Agnosticism**
+    
+    - Don’t assume transport‑level security covers all hops—use AMP’s modular header blocks for end‑to‑end guarantees.
+        
 
-## Informative References
+---
 
-- [JSON‑LD 1.1](https://www.w3.org/TR/json-ld11/)
-- Agentic AI Messaging Patterns (forthcoming)
+**7.3 Underlying Protocol Bindings**  
+AMP can be carried over HTTP, gRPC, SMTP, or custom transports. Binding specifications SHOULD:
 
-## License
+1. **Security Implications**
+    
+    - Document risks of omitting or violating AMP security recommendations (e.g., skipping signature validation).
+        
+    - Describe countermeasures for threats not covered by the transport (e.g., replay attacks).
+        
+2. **Extension Interactions**
+    
+    - Explain how AMP header blocks (e.g., `authentication`, `encryption`) interact with transport features (e.g., HTTP Basic Auth, TLS).
+        
+    - Warn of potential conflicts (e.g., double-encryption, header stripping).
+        
+3. **Default vs. Non‑Default Ports**
+    
+    - Highlight infrastructure behaviors (proxies, filters) when using well‑known ports.
+        
+    - Recommend non‑default ports or custom endpoints to avoid unintended middlebox interference.
+        
 
-Copyright © 2025 Jamin Quimby
+---
 
-Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
+**7.3.1 Binding to Application‑Specific Protocols**  
+Bindings to specialized protocols (e.g., IoT, message buses) MAY reuse existing endpoints. Authors SHOULD:
 
-https://www.apache.org/licenses/LICENSE‑2.0
+1. **Document Port Semantics**
+    
+    - List default ports and associated network assumptions or filters.
+        
+    - Provide examples of using alternative ports to bypass unwanted inspection.
+        
+2. **Profile‑Aware Security**
+    
+    - Identify default behaviors (e.g., QoS, routing) that could affect AMP messages.
+        
+    - Specify additional header blocks or transport flags needed to preserve AMP semantics.
+        
+3. **Compatibility Testing**
+    
+    - Test AMP over common infrastructure stacks to uncover protocol binding issues.
+        
+    - Include guidance on mitigating discovered interoperability or security problems.
 
-Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+
+## A Appendix: MemoryGram Model (Non‑Normative)
+
+### A.1 Nodes & Edges
+
+|   |   |   |
+|---|---|---|
+|Field|Type|Description|
+|id|string|Unique node identifier.|
+|type|string|Node category (e.g. plan, issue).|
+|metadata|object|Key-values (importance, decay, etc.).|
+
+|   |   |   |
+|---|---|---|
+|Field|Type|Description|
+|source|string|Source node ID.|
+|target|string|Target node ID.|
+|weight|number|Strength (0–1).|
+|context|string|Optional label.|
+
+### A.2 Lifecycle
+
+1. **Generate**: Local confidence query.
+    
+2. **Transmit**: Included in frame.
+    
+3. **Interpret**: Hints only.
+    
+4. **Decay/Reinforce**: Agent-specific aging.
+    
+
+---
+
+© 2025 Jamin Quimby — Apache 2.0 License
